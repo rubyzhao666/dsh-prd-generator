@@ -1,6 +1,6 @@
 {
   "meta": {
     "title": "PRD Creator",
-    "description": "PRD Creator: clarify -> insight analysis -> PRD -> ralph-compatible prd.json -> acceptance checklist. A bundled skill supplies the method; prd_write / prd_check do deterministic file output and strict validation."
+    "description": "By Ruby · DSH plugin: clarify -> insight analysis -> PRD -> ralph-compatible prd.json -> acceptance checklist. A bundled skill supplies the method; prd_write / prd_check do deterministic file output and strict validation."
   }
 }

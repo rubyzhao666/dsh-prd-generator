@@ -1,6 +1,6 @@
 {
   "meta": {
     "title": "PRD Creator",
-    "description": "PRD Creator：需求澄清 → 洞察分析 → PRD → prd.json（Ralph 兼容）→ 验收清单一条流水线：随包 skill 提供方法论，prd_write / prd_check 负责确定性落盘与严格校验。"
+    "description": "Ruby 出品 · DSH 插件：需求澄清 → 洞察分析 → PRD → prd.json（Ralph 兼容）→ 验收清单一条流水线：随包 skill 提供方法论，prd_write / prd_check 负责确定性落盘与严格校验。"
   }
 }
