@@ -1,14 +1,22 @@
 // 测试共用：假 ctx、样例 PRD、JSON Schema 断言（不引第三方依赖）。
 
 import assert from 'node:assert/strict'
+import { mkdtempSync } from 'node:fs'
 import { mkdtemp } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
+
+// 0.4.0 起 prd_write / prd_handoff 会写 $DSH_HOME/prd-generator/registry.json；
+// 测试一律强制指向临时 DSH_HOME，避免污染用户真实 ~/.dsh（DSH 宿主会预设 DSH_HOME=~/.dsh，
+// 所以不能只在“未设置时”兜底）。registry 在每次调用时读取 env，这里设置即生效。
+export const TEST_DSH_HOME = mkdtempSync(join(tmpdir(), 'dsh-prd-test-home-'))
+process.env.DSH_HOME = TEST_DSH_HOME
 
 export function fakeCtx() {
   const tools = new Map()
   const providers = []
   const effects = []
+  const handlers = []
   const ctx = {
     effect(fn) {
       const cleanup = fn()
@@ -22,9 +30,15 @@ export function fakeCtx() {
       },
     },
     skills: { registerProvider(factory) { providers.push(factory()); return () => {} } },
+    webServer: {
+      register(entry) {
+        handlers.push(entry)
+        return () => {}
+      },
+    },
     logger: { info() {}, warn() {}, error() {} },
   }
-  return { ctx, tools, providers, effects }
+  return { ctx, tools, providers, effects, handlers }
 }
 
 export function makeTmpDir(prefix = 'dsh-prd-test-') {

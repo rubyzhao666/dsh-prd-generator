@@ -10,6 +10,10 @@ import { prdCheckTool, prdHandoffTool, prdWriteTool } from '../lib/tools.js'
 
 const dir = process.argv[2] ? resolve(process.argv[2]) : await mkdtemp(join(tmpdir(), 'dsh-prd-smoke-'))
 
+// 0.4.0：冒烟也写入「PRD 项目」registry；用独立临时 DSH_HOME，避免把临时目录写进真实列表。
+process.env.DSH_HOME = await mkdtemp(join(tmpdir(), 'dsh-prd-smoke-home-'))
+console.log(`临时 DSH_HOME：${process.env.DSH_HOME}\n`)
+
 const prd = {
   name: '每日打卡 + 跟读打分',
   summary: '给英语学习 App 做每日打卡与跟读打分，让用户形成连续学习习惯。',

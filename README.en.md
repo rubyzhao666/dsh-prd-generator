@@ -25,6 +25,16 @@ The upstream project supplies the PRD method, templates and prompts; this plugin
 | `prd_check` | Validates an existing `prd.json`: JSON syntax, schema, at least 1 AC per story, at least 1 P0, non-empty `scope.in_scope`, unique story ids; plus the assumption ledger — a **P0 story blocked by an unanswered question with no default assumption is an error**, empty `assumptions` or a `blocks-p0` assumption without evidence is a warning. Returns `{ok, errors, warnings, stats}` with actionable messages. |
 | `prd_handoff` | **Pre-execution gate**: reads `prd.json` and decides whether the PRD is safe to hand to Ralph / an AI coding agent. Returns `ready` / `blockers[]` (4 codes) / `warnings[]` (3 codes) / `checklist` / `handoffPath` / `stats`; by default writes a six-chapter `handoff.md` atomically next to `prd.json` (`write: false` only returns the checklist). Read-only: never modifies `prd.json` or other artifacts. |
 
+### Sidebar entry "PRD 项目" / PRD Projects (0.4.0)
+
+After installing and restarting DSH, a **PRD 项目** (PRD Projects) entry appears in the left sidebar:
+
+- **List page** `/prd-generator/`: PRDs generated on this machine, newest first, with summary, `P0 / assumptions / open questions` badges, handoff status (可执行 / 需先确认 / 未生成) and the project directory;
+- **Detail page** `/prd-generator/p/<id>`: reads the on-disk `prd.json` and shows stories P0→P1→P2 with acceptance criteria and tasks, the assumption table, the open-question table, a handoff card (re-evaluated ready/blockers) and the file path;
+- **Read-only**: GET/HEAD only, writes nothing, loads no external resources; writing/validation/handoff still happen in chat. If a directory is moved/deleted or `prd.json` is corrupted, the detail page shows a friendly error instead of a 500.
+
+The record store lives at `$DSH_HOME/prd-generator/registry.json` (max 200 entries, safe to delete; deleting it only clears the sidebar list, not the generated files).
+
 ### Bundled skill: `prd-generator` (internal id; display name PRD Creator)
 
 Bundled with the plugin. It loads when the user says things like "write a PRD", "product requirements", "feature planning" or "acceptance criteria". Workflow:
@@ -87,7 +97,7 @@ cd /path/to/dsh-prd-generator
 npm pack --dry-run      # inspect the published contents
 ```
 
-After installing, `prd_write` / `prd_check` appear in the tool list and `prd-generator` appears in the skill list.
+After installing, `prd_write` / `prd_check` / `prd_handoff` appear in the tool list and `prd-generator` appears in the skill list. **Restart DSH** to load the browser-side sidebar entry (PRD 项目).
 
 ## Usage
 
@@ -168,9 +178,11 @@ Priorities: **P0 = must ship for MVP; P1 = first iteration after MVP; P2 = long 
 
 ## Data and network
 
-- **No `$DSH_HOME` writes**: the plugin is stateless and only writes into the `dir` (absolute path) given by the caller. Missing directories are created; same-named files are overwritten.
+- **PRD artifacts**: only written into the caller-provided `dir` (absolute path). Missing directories are created; same-named files are overwritten. Nothing is copied elsewhere.
+- **Generation records**: `$DSH_HOME/prd-generator/registry.json` (default `~/.dsh/prd-generator/registry.json`). `prd_write` upserts one summary entry (id = first 12 hex of sha1(dir), name/summary/stats/handoff status); `prd_handoff` updates the handoff status. Max **200 entries**, atomic temp-file + rename writes, tolerant of corrupted JSON (treated as empty). It is the only data source for the sidebar list; **deleting it clears the list but leaves generated PRDs untouched**.
+- **Read-only pages**: the list reads the registry, the detail page reads the on-disk `prd.json` (and checks for a sibling `handoff.md`). Pages write nothing and load no external resources.
 - **Zero runtime dependencies, pure ESM**: only Node built-ins, no `dependencies`.
-- **No API keys, no secrets**: `prd_write` / `prd_check` are fully local; optional competitor research uses DSH's `web_search` from the session model.
+- **No API keys, no secrets**: `prd_write` / `prd_check` / `prd_handoff` are fully local; optional competitor research uses DSH's `web_search` from the session model.
 - Configuration: none.
 
 ## Development and tests
@@ -182,7 +194,7 @@ node --test test/*.test.mjs
 npm pack --dry-run
 ```
 
-Coverage: fake-ctx registration (tools + skill), `prd_write` end-to-end (content assertions for all 5 files, format subsets, overwrite, auto-filled ids/priorities), `prd_check` end-to-end (missing AC / missing P0 / empty `in_scope` / duplicate ids / invalid JSON, and more), the **assumption & open-question ledger (F2 acceptance criteria 1–6)**, the **pre-execution gate `prd_handoff` (G2 acceptance criteria 1–7: ready case, 4 blocker codes, 3 warning codes, write on/off, directory/file paths and errors, legacy-format compatibility, six-chapter assertions and non-regression)**, plus `output.schema` conformance.
+Coverage: fake-ctx registration (tools + skill + webServer handler), the **0.4.0 sidebar project pages** (registry atomic writes / 200-entry cap / corruption tolerance / bad-entry skipping; list + detail over a real HTTP server covering 404/405/XSS/no-external-resources/2MB truncation/friendly errors; the client.js `__ModuleLoader__` contract and iframe; prd_write/prd_handoff registry integration), `prd_write` end-to-end (content assertions for all 5 files, format subsets, overwrite, auto-filled ids/priorities), `prd_check` end-to-end (missing AC / missing P0 / empty `in_scope` / duplicate ids / invalid JSON, and more), the **assumption & open-question ledger (F2 acceptance criteria 1–6)**, the **pre-execution gate `prd_handoff` (G2 acceptance criteria 1–7: ready case, 4 blocker codes, 3 warning codes, write on/off, directory/file paths and errors, legacy-format compatibility, six-chapter assertions and non-regression)**, plus `output.schema` conformance.
 
 ## License
 

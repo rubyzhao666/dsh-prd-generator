@@ -13,7 +13,7 @@ const PLUGIN_ROOT = fileURLToPath(new URL('..', import.meta.url))
 test('exports a host plugin shape', () => {
   assert.equal(name, 'prd-generator')
   assert.ok(Array.isArray(inject))
-  assert.deepEqual(inject, ['tools', 'skills'])
+  assert.deepEqual(inject, ['tools', 'skills', 'webServer'])
   assert.equal(typeof apply, 'function')
 })
 
@@ -44,6 +44,23 @@ test('registers every tool with the expected contract', () => {
     assert.equal(typeof tool.execute, 'function')
     assert.ok(tool.timeoutMs >= 10_000)
   }
+})
+
+test('registers the /prd-generator/ read-only web handler', () => {
+  const { ctx, handlers } = fakeCtx()
+  apply(ctx)
+  assert.equal(handlers.length, 1)
+  const registered = handlers[0]
+  assert.equal(registered.kind, 'prefix')
+  assert.equal(registered.path, '/prd-generator')
+  assert.equal(typeof registered.handler, 'function')
+})
+
+test('package 暴露 client 入口，且带 dsh.client（左侧栏）', async () => {
+  const pkg = JSON.parse(await readFile(new URL('../package.json', import.meta.url), 'utf8'))
+  assert.equal(pkg.exports['./client'], './lib/client.js')
+  assert.deepEqual(pkg.dsh.client, { platform: 'web', inject: [] })
+  assert.ok(pkg.files.includes('lib'), 'files 白名单需包含 lib（含 client.js/web.js/registry.js）')
 })
 
 test('registers the bundled prd-generator skill', async () => {
@@ -106,6 +123,11 @@ test('package files 覆盖运行所需文件', async () => {
   const pkg = JSON.parse(await readFile(new URL('../package.json', import.meta.url), 'utf8'))
   for (const entry of ['lib', 'skills', 'locale/*.json', 'cordis.patch.yml', 'icon.svg', 'README.md', 'README.en.md', 'LICENSE']) {
     assert.ok(pkg.files.includes(entry), `package.json files 缺少 ${entry}`)
+  }
+  // 0.4.0 新增的 Host/Client 文件必须真实存在（npm pack 靠 files: ["lib"] 收录）
+  const { existsSync } = await import('node:fs')
+  for (const file of ['lib/web.js', 'lib/client.js', 'lib/registry.js']) {
+    assert.ok(existsSync(PLUGIN_ROOT + file), `缺少运行文件 ${file}`)
   }
   // PLUGIN_ROOT 只用于本测试的相对路径基线，确保解析正常
   assert.ok(PLUGIN_ROOT.endsWith('/'))
