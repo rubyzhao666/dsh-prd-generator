@@ -91,11 +91,17 @@ After installing, `prd_write` / `prd_check` appear in the tool list and `prd-gen
 
 ## Usage
 
-### In conversation
+### Just say it (no feature/tool names needed)
 
-> Write a PRD for a "daily check-in + read-aloud scoring" feature in an English-learning app.
+You do not need to remember the plugin name or any tool name — just describe the goal and the model picks the right capability:
 
-The model loads the `prd-generator` skill, asks a few clarifying questions, then generates the full PRD and acceptance checklist.
+- "Write me a product requirements doc for a daily check-in + read-aloud scoring feature."
+- "I have an idea — turn it into a plan a developer can actually build."
+- "Is this requirement ready to start building? Check for anything still undecided."
+- "Can this PRD be handed to an AI coder? If so, give me a handoff doc."
+- "Don't keep asking me — proceed on reasonable assumptions, but flag what's uncertain."
+
+The model asks a few clarifying questions, produces the PRD and acceptance checklist, and runs the pre-execution gate before anyone starts building.
 
 ### Direct tool calls (scripts / other agents)
 
