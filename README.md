@@ -25,15 +25,23 @@
 | `prd_check` | 校验已有 `prd.json`：JSON 合法、schema、每条故事 AC ≥ 1、至少 1 条 P0、`scope.in_scope` 非空、故事 id 唯一；并校验假设账本——**P0 故事被未确认问题阻塞且无默认假设时报 error**，`assumptions` 为空 / `blocks-p0` 假设缺证据时报 warning。返回 `{ok, errors, warnings, stats}`，错误信息可直接指导修复。 |
 | `prd_handoff` | **执行前门禁**：读取 `prd.json`，判断这份 PRD 是否敢交给 Ralph / AI coding agent。返回 `ready` / `blockers[]`（4 类 code）/ `warnings[]`（3 类 code）/ `checklist` / `handoffPath` / `stats`；默认在同目录原子写六章 `handoff.md`（`write: false` 只返回 checklist）。只读 `prd.json`，不修改任何已有产物。 |
 
-### 左侧栏「PRD 项目」（0.4.0）
+### 左侧栏「PRD Creator」项目工作台（0.5.0）
 
-安装并重启 DSH 后，左侧栏会出现「**PRD 项目**」入口（图标：文档 + 勾选）：
+安装并重启 DSH 后，左侧栏会出现「**PRD Creator**」入口（图标：文档 + 勾选），打开是本机 PRD 的项目工作台：
 
-- **列表页** `/prd-generator/`：本机生成过的 PRD（按更新时间倒序），显示一句话描述、`P0 / 假设 / 待确认` badges、交接单状态（可执行 / 需先确认 / 未生成）、目录路径；
-- **详情页** `/prd-generator/p/<id>`：以磁盘上的 `prd.json` 为准，展示 P0→P1→P2 故事与验收标准/任务、假设表、待确认问题表、交接单卡片（重新评估 ready 与 blockers 数）、文件路径；
-- **只读**：页面只支持 GET/HEAD，不写盘、不加载任何外部资源；写 PRD / 校验 / 交接仍在对话里完成。PRD 目录被移动/删除或 `prd.json` 损坏时，详情页给友好错误提示而不是 500。
+- **顶栏**：`共 N / 可执行 M / 待确认 K` + 「新建 PRD」按钮（在新会话里填入写 PRD 的提示词）；
+- **工具栏**：搜索（名称 / 摘要，按 `/` 聚焦）、筛选 chips（全部 / 可执行 / 待确认 / 未生成交接单）、排序（最近更新 / 最早更新 / 名称）；
+- **列表**：卡片式行，显示一句话描述、`P0 / 假设 / 待确认` badges、交接单状态、更新时间、目录；hover 可复制路径；
+- **详情**（hash `#/p/<id>`）：名称/摘要/生成时间/目录 + 统计条（故事 / AC / P0 / P1 / P2 / 假设 / 待确认）+ 四个 tabs：
+  - **故事**：按 P0→P1→P2 分组，每条故事列出验收标准（只读勾选框）与 tasks；
+  - **假设与待确认**：假设表（来源 / 影响 / 涉及故事 / 依据）+ 待确认表（阻塞故事 / 默认假设 / 负责人）；
+  - **交接单**：可执行 / 需先确认大状态、blockers / warnings 列表、交接单路径；
+  - **文件**：prd.md / prd.json / acceptance.md / mindmap.mmd / flowchart.mmd / handoff.md 的路径与是否存在，可逐个复制。
+- **动作按钮**（完善 PRD、生成/更新交接单、在对话里处理 blockers、新建 PRD）不会直接执行工具，而是通过 `postMessage` 让 DSH 开一个新会话并填入带目录上下文的提示词；「复制路径」「复制 prd.json 路径」直接写剪贴板。
+- **主题自适应**：默认 light，跟随 DSH 明暗主题切换（`data-theme`）；移动端单列。
+- **只读 + 安全**：页面与 API 只支持 GET/HEAD，不写盘、不加载任何外部资源；未知 id/路径 404，目录缺失或 `prd.json` 损坏时给友好错误而不是 500。
 
-生成记录保存在 `$DSH_HOME/prd-generator/registry.json`（最多 200 条，可安全删除；删掉只是左侧栏列表清空，不影响已经生成的文件）。
+Host API：`GET /prd-generator/api/prds`（列表 + 统计）、`GET /prd-generator/api/prds/<id>`（结构化 PRD + handoff 门禁评估）；旧 `/prd-generator/p/<id>` 302 到 `#/p/<id>` 兼容。生成记录保存在 `$DSH_HOME/prd-generator/registry.json`（最多 200 条，可安全删除；删掉只是工作台列表清空，不影响已经生成的文件）。
 
 ### 随包 Skill：`prd-generator`（内部 id，显示名 PRD Creator）
 
@@ -116,7 +124,7 @@ npm pack --dry-run      # 检查打包内容
 
 - 工具列表里出现 `prd_write` / `prd_check` / `prd_handoff`；
 - skill 列表里出现 `prd-generator`；
-- **重启 DSH 后**，左侧栏出现「PRD 项目」入口（首次安装或更新后需要重启才会加载浏览器半边）。
+- **重启 DSH 后**，左侧栏出现「PRD Creator」入口（首次安装或更新后需要重启才会加载浏览器半边）。
 
 ## 使用
 
@@ -198,8 +206,8 @@ node scripts/smoke.mjs /tmp/prd-demo   # 写到指定目录
 ## 数据位置与网络
 
 - **PRD 产物**：只写调用方指定的 `dir`（绝对路径）；目录不存在会自动创建，同名文件会被覆盖。不复制到别处。
-- **生成记录**：`$DSH_HOME/prd-generator/registry.json`（默认 `~/.dsh/prd-generator/registry.json`）。`prd_write` 成功后写入/更新一条摘要（id = sha1(dir) 前 12 位、名称/描述/统计/交接单状态），`prd_handoff` 成功后更新 handoff 状态。最多保留 **200 条**、临时文件 + rename 原子写、JSON 损坏时容错为空列表。它是左侧栏「PRD 项目」的唯一数据源，**删除后列表清空、不影响已生成的 PRD 文件**。
-- **只读页面**：`/prd-generator/` 列表读 registry，详情页读磁盘 `prd.json`（+ 同目录 `handoff.md` 是否存在）；页面不写盘、不联网、无外部资源。
+- **生成记录**：`$DSH_HOME/prd-generator/registry.json`（默认 `~/.dsh/prd-generator/registry.json`）。`prd_write` 成功后写入/更新一条摘要（id = sha1(dir) 前 12 位、名称/描述/统计/交接单状态），`prd_handoff` 成功后更新 handoff 状态。最多保留 **200 条**、临时文件 + rename 原子写、JSON 损坏时容错为空列表。它是左侧栏「PRD Creator」的唯一数据源，**删除后列表清空、不影响已生成的 PRD 文件**。
+- **只读页面 / API**：`/prd-generator/` 的 SPA 通过 `/prd-generator/api/prds*` 读 registry 与磁盘 `prd.json`（+ 同目录 `handoff.md` 是否存在）；页面与 API 不写盘、不联网、无外部资源。
 - **零运行时依赖、纯 ESM**：只 import Node 内置模块，没有 `dependencies`。
 - **不需要任何 API key、不写死密钥**：`prd_write` / `prd_check` / `prd_handoff` 纯本地；可选的竞品搜索由会话模型调用 DSH 的 `web_search` 完成。
 - 配置文件：无。
@@ -213,7 +221,7 @@ node --test test/*.test.mjs
 npm pack --dry-run
 ```
 
-测试覆盖：假 ctx 注册（工具 + skill + webServer handler）、`prd_write` 端到端（5 个文件内容断言、格式子集、覆盖写、自动补 id/优先级）、`prd_check` 端到端（缺 AC / 缺 P0 / `in_scope` 空 / id 重复 / 非法 JSON 等坏例子）、**假设与待确认账本（F2 验收标准 1–6）**、**执行前门禁 `prd_handoff`（G2 验收标准 1–7）**、**0.4.0 左侧栏项目页**（registry 原子写/200 条上限/损坏容错/坏 entry 跳过；真实 HTTP server 下的列表/详情/404/405/XSS/无外部资源/2MB 截断/友好错误；client.js 的 `__ModuleLoader__` 契约与 iframe；prd_write/prd_handoff 写 registry 的集成），以及各自 `output.schema` 一致性。
+测试覆盖：假 ctx 注册（工具 + skill + webServer handler）、`prd_write` 端到端（5 个文件内容断言、格式子集、覆盖写、自动补 id/优先级）、`prd_check` 端到端（缺 AC / 缺 P0 / `in_scope` 空 / id 重复 / 非法 JSON 等坏例子）、**假设与待确认账本（F2 验收标准 1–6）**、**执行前门禁 `prd_handoff`（G2 验收标准 1–7）**、**0.4.0 生成记录 registry**（原子写 / 200 条上限 / 损坏容错 / 坏 entry 跳过；prd_write/prd_handoff 写 registry 的集成）、**0.5.0 项目工作台**（真实 HTTP server 下的 SPA 壳 / 列表 API / 详情 API / old-route 302 / 404/405 / 2MB 防护 / 注册表损坏容错；client.js 用 vm 沙盒验证 slot 注册、theme 推送、start-session → `uiWorkspace.startSession` 与回执、非法消息忽略、清理），以及各自 `output.schema` 一致性。
 
 ## 许可
 
