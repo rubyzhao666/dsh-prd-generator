@@ -1,6 +1,6 @@
-# dsh-prd-generator
+# PRD Creator（dsh-prd-generator）
 
-> 给 DeepSeek Harness 的 PRD 生成插件：**需求澄清 → 洞察分析 → PRD → prd.json（Ralph 兼容）→ 验收清单**，一条流水线出齐 5 个文件。
+> 给 DeepSeek Harness 的 **PRD Creator** 插件：**需求澄清 → 洞察分析 → PRD → prd.json（Ralph 兼容）→ 验收清单**，一条流水线出齐 5 个文件。
 
 基于 [rubyzhao666/prd-generator](https://github.com/rubyzhao666/prd-generator)（MIT）改造成 DSH 插件：
 上游提供 PRD 方法论、模板与提示词；本插件把它们变成**会话模型 + 两个确定性工具**的 DSH 工作流——模型负责分析、写作和拍判断，工具负责严格校验与落盘。
@@ -25,7 +25,7 @@
 | `prd_check` | 校验已有 `prd.json`：JSON 合法、schema、每条故事 AC ≥ 1、至少 1 条 P0、`scope.in_scope` 非空、故事 id 唯一；并校验假设账本——**P0 故事被未确认问题阻塞且无默认假设时报 error**，`assumptions` 为空 / `blocks-p0` 假设缺证据时报 warning。返回 `{ok, errors, warnings, stats}`，错误信息可直接指导修复。 |
 | `prd_handoff` | **执行前门禁**：读取 `prd.json`，判断这份 PRD 是否敢交给 Ralph / AI coding agent。返回 `ready` / `blockers[]`（4 类 code）/ `warnings[]`（3 类 code）/ `checklist` / `handoffPath` / `stats`；默认在同目录原子写六章 `handoff.md`（`write: false` 只返回 checklist）。只读 `prd.json`，不修改任何已有产物。 |
 
-### Skill：`prd-generator`
+### 随包 Skill：`prd-generator`（内部 id，显示名 PRD Creator）
 
 随包提供，用户说「写 PRD」「产品需求文档」「需求文档」「功能规划」「验收标准」等时自动加载。工作流：
 

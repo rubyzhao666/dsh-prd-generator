@@ -1,6 +1,6 @@
-# dsh-prd-generator
+# PRD Creator (dsh-prd-generator)
 
-> A PRD generator plugin for DeepSeek Harness: **clarify → insight analysis → PRD → ralph-compatible prd.json → acceptance checklist**, five files in one pipeline.
+> **PRD Creator** for DeepSeek Harness: **clarify → insight analysis → PRD → ralph-compatible prd.json → acceptance checklist**, five files in one pipeline.
 
 Ported from [rubyzhao666/prd-generator](https://github.com/rubyzhao666/prd-generator) (MIT) into a DSH plugin.
 The upstream project supplies the PRD method, templates and prompts; this plugin turns them into a DSH workflow where **the session model does the thinking and writing**, while two deterministic tools do strict validation and file output.
@@ -25,7 +25,7 @@ The upstream project supplies the PRD method, templates and prompts; this plugin
 | `prd_check` | Validates an existing `prd.json`: JSON syntax, schema, at least 1 AC per story, at least 1 P0, non-empty `scope.in_scope`, unique story ids; plus the assumption ledger — a **P0 story blocked by an unanswered question with no default assumption is an error**, empty `assumptions` or a `blocks-p0` assumption without evidence is a warning. Returns `{ok, errors, warnings, stats}` with actionable messages. |
 | `prd_handoff` | **Pre-execution gate**: reads `prd.json` and decides whether the PRD is safe to hand to Ralph / an AI coding agent. Returns `ready` / `blockers[]` (4 codes) / `warnings[]` (3 codes) / `checklist` / `handoffPath` / `stats`; by default writes a six-chapter `handoff.md` atomically next to `prd.json` (`write: false` only returns the checklist). Read-only: never modifies `prd.json` or other artifacts. |
 
-### Skill: `prd-generator`
+### Bundled skill: `prd-generator` (internal id; display name PRD Creator)
 
 Bundled with the plugin. It loads when the user says things like "write a PRD", "product requirements", "feature planning" or "acceptance criteria". Workflow:
 

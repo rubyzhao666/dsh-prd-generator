@@ -1,7 +1,7 @@
 {
   "name": "dsh-prd-generator",
-  "version": "0.3.1",
-  "description": "Requirement clarification -> PRD -> prd.json (snarktank/ralph compatible) -> acceptance checklist, with a bundled prd-generator skill.",
+  "version": "0.3.2",
+  "description": "PRD Creator — requirement clarification -> PRD -> prd.json (snarktank/ralph compatible) -> acceptance checklist, with a bundled skill.",
   "type": "module",
   "main": "lib/index.js",
   "exports": {
