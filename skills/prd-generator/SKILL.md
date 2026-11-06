@@ -1,6 +1,6 @@
 ---
 name: prd-generator
-description: 产品需求文档（PRD）生成与验收清单流水线：把一句话需求或零散想法，先一次性问 3–5 个关键澄清问题，做六维度洞察分析，可选 web_search 竞品分析；再把 AI 替用户做的决定整理成假设与待确认问题账本（assumptions / open_questions），调用 prd_write 生成 prd.md（10 章）/ prd.json（snarktank/ralph 兼容）/ acceptance.md / mindmap.mmd / flowchart.mmd，最后用 prd_check 校验到通过并给用户摘要（含假设 N 条 / 待确认 M 条）。用户说「写 PRD」「产品需求文档」「需求文档」「功能规划」「验收标准」「把需求整理成 PRD」「生成 prd.json」「记录假设」「待确认问题」时使用。
+description: 产品需求文档（PRD）生成与验收清单流水线：把一句话需求或零散想法，先一次性问 3–5 个关键澄清问题，做六维度洞察分析，可选 web_search 竞品分析；再把 AI 替用户做的决定整理成假设与待确认问题账本（assumptions / open_questions），调用 prd_write 生成 prd.md（10 章）/ prd.json（snarktank/ralph 兼容）/ acceptance.md / mindmap.mmd / flowchart.mmd，最后用 prd_check 校验到通过、用 prd_handoff 做执行前门禁（生成六章 handoff.md）并给用户摘要（含假设 N 条 / 待确认 M 条、ready 结论）。用户说「写 PRD」「产品需求文档」「需求文档」「功能规划」「验收标准」「把需求整理成 PRD」「生成 prd.json」「记录假设」「待确认问题」时使用。
 ---
 
 # PRD 生成器（DSH 版）
@@ -40,7 +40,7 @@ description: 产品需求文档（PRD）生成与验收清单流水线：把一�
 
 - **一次问完**，不要问一个等一个。问题总数 3–5 个，最多一轮；用户回答后直接进入下一阶段。
 - 用户已给足信息、或明确说「别问了」→ 跳过提问，用一句话说明你据什么生成。
-- 用户只答了一部分 → 剩余部分采用最合理假设，并在第 8 步摘要里列出来；涉及取舍的假设要标出来让用户确认。
+- 用户只答了一部分 → 剩余部分采用最合理假设，并在第 9 步摘要里列出来；涉及取舍的假设要标出来让用户确认。
 - 不要问文档里已写明的信息。
 
 **澄清答案要落成两个清单**（第 5 步写进 `prd` 对象）：
@@ -159,7 +159,7 @@ description: 产品需求文档（PRD）生成与验收清单流水线：把一�
 - `prd`：第 5 步组装的对象；
 - `formats`：可选，不传 = 全部 5 个文件。
 
-成功会生成 5 个文件：`prd.md`（10 章，第 10 章是假设与待确认）、`prd.json`（Ralph 兼容，含 `assumptions` / `open_questions`）、`acceptance.md`（P0/P1/P2 勾选清单 + 依赖假设/待确认标记）、`mindmap.mmd`、`flowchart.mmd`。
+成功会生成 5 个文件：`prd.md`（10 章，第 10 章是假设与待确认）、`prd.json`（Ralph 兼容，含 `assumptions` / `open_questions`）、`acceptance.md`（P0/P1/P2 勾选清单 + 依赖假设/待确认标记）、`mindmap.mmd`、`flowchart.mmd`。第 6 个文件 `handoff.md` 由第 8 步的 `prd_handoff` 生成。
 
 `prd_write` 报错时：错误信息会逐条列出哪个字段缺失/不合法。**补齐 `prd` 对象后原样重试**（同一个 `dir` 会覆盖同名文件）；不要换目录、不要绕过校验、不要手写文件。
 
@@ -174,7 +174,28 @@ description: 产品需求文档（PRD）生成与验收清单流水线：把一�
   - warning：`impact: "blocks-p0"` 但 `evidence` 为空 → 补依据（用户原话 / 搜索结果 / 行业惯例）；
 - 循环上限建议 3 轮；仍修不好就如实告诉用户还剩什么问题和为什么。
 
-### 第 8 步：给用户摘要（不要把全文贴进对话）
+### 第 8 步：交给执行前：`prd_handoff` 门禁 + handoff.md（0.3.0 新增）
+
+`prd_check` 通过只代表文档合规；交给 Ralph / AI coding agent 之前还要过一道「敢不敢开工」的门禁。
+
+- 参数：`path` 传 `prd_write` 返回的 `dir`（或 `prd.json` 绝对路径）；`write` 默认 `true`，在 `prd.json` 同目录写 `handoff.md`，传 `false` 只返回 checklist、不落盘。
+- 返回：`ready` / `blockers[]` / `warnings[]` / `checklist`（六章 Markdown）/ `handoffPath` / `stats`。
+
+**blocker（ready=false，必须回 prd 对象修掉）**：
+
+| code | 含义 | 修法 |
+| --- | --- | --- |
+| `P0_BLOCKED_BY_OPEN_QUESTION` | P0 故事被未确认问题阻塞，且无 `default_assumption`、也无 `affects` 覆盖它的假设 | 补默认假设 / 降级 / 让假设覆盖该故事 |
+| `P0_WITHOUT_TASKS` | P0 故事没有 `tasks` | 补 2–5 条可执行任务 |
+| `P0_WITHOUT_ACCEPTANCE` | P0 故事没有验收标准 | 补 Given-When-Then |
+| `BLOCKS_P0_ASSUMPTION_WITHOUT_EVIDENCE` | `impact=blocks-p0` 的假设缺 `evidence` | 补依据（用户原话 / 搜索结果 / 行业惯例） |
+
+**warning（不阻塞，但建议处理）**：`OPEN_QUESTION_WITHOUT_OWNER`（待确认问题无 owner 且无默认假设）、`NON_P0_BLOCKED`（非 P0 故事被阻塞）、`NO_ASSUMPTIONS`（没有任何假设记录）。
+
+流程：`prd_handoff` → `ready=false` 时按 blockers 回到第 5 步补 prd 对象 → 重跑 `prd_write` + `prd_check` + `prd_handoff` 直到 `ready=true` → 把 `handoff.md` 与 `prd.json` 一起交给 Ralph / coding agent。
+**不要在 blockers 未清零时交接**；`ready=false` 时仍会生成带勾选清单的 handoff.md，可以直接拿给用户确认。
+
+### 第 9 步：给用户摘要（不要把全文贴进对话）
 
 按这个结构汇报：
 
@@ -183,8 +204,9 @@ description: 产品需求文档（PRD）生成与验收清单流水线：把一�
 3. **验收标准数量**：总计 N 条（P0 x / P1 y / P2 z）；
 4. **MVP 范围**：做几项、不做几项（各列 1–2 条例子）；
 5. **洞察摘要**：3–5 条最有判断力的结论（不是复述文档）；
-6. **文件路径**：5 个文件的绝对路径 + 校验结果（`prd_check` 是否通过）；
-7. **假设与待确认**：`假设 N 条 / 待确认 M 条`（取自 `prd_check.stats`）。至少列出：`impact=blocks-p0` 的假设（带 evidence 摘要）、每条待确认问题（id + 一句话 + 默认假设 + owner）、以及信息缺口。
+6. **文件路径**：5 个 PRD 产物 + `handoff.md` 的绝对路径，`prd_check` 是否通过；
+7. **假设与待确认**：`假设 N 条 / 待确认 M 条`（取自 `prd_check.stats`）。至少列出：`impact=blocks-p0` 的假设（带 evidence 摘要）、每条待确认问题（id + 一句话 + 默认假设 + owner）、以及信息缺口；
+8. **执行门禁结论**：`prd_handoff.ready` 是 true 还是 false；false 时列出 blockers（code + 一句话），并说明「解决后才能交给 coding agent」。
 
 用户要看全文时，用 `read` 读 `prd.md` 再贴或分段讲，不要凭记忆复述。
 
@@ -197,6 +219,7 @@ description: 产品需求文档（PRD）生成与验收清单流水线：把一�
 | `acceptance.md` | 按 P0/P1/P2 分组，每条故事一组 Given-When-Then 勾选清单；受影响故事标注「依赖假设」、被阻塞故事标注「⚠ 待确认」 | 开发自测、验收、转测试用例 |
 | `mindmap.mmd` | Mermaid 思维导图 | GitHub / Obsidian / 飞书 / VS Code 渲染 |
 | `flowchart.mmd` | Mermaid 用户流程图（P0 主线 + MVP 后迭代 + 明确不做） | 评审时讲流程 |
+| `handoff.md` | 执行交接单（6 章）：必须确认项 / 已采用默认假设 / 不要做的事 / 执行顺序与任务 / 验收门禁 / 生成信息。由第 8 步 `prd_handoff` 生成（默认） | 交给 Ralph / AI coding agent 时随 prd.json 一起提供 |
 
 ## 常见失败与处理
 
@@ -215,6 +238,11 @@ description: 产品需求文档（PRD）生成与验收清单流水线：把一�
 | `prd_write` 报 affects/blocks 引用不存在的故事 id | 用用户故事列表里的真实 id（`US-001` 这种），先跑 `prd_check` 不通过时先修故事 |
 | `prd_check` warning「assumptions 为空」 | 补至少 1 条假设；全部来自用户原话也要写 `source: "user"` |
 | `prd_check` warning「blocks-p0 但 evidence 为空」 | 给该假设补依据（用户原话 / 搜索结果 / 行业惯例说明） |
+| `prd_handoff` 返回 `ready=false` + `P0_BLOCKED_BY_OPEN_QUESTION` | 给问题补 `default_assumption`，或把故事降级为 P1/P2，或让某条假设 `affects` 覆盖该故事 |
+| `prd_handoff` 返回 `P0_WITHOUT_TASKS` / `P0_WITHOUT_ACCEPTANCE` | 回 prd 对象给该 P0 故事补 tasks / Given-When-Then 验收标准 |
+| `prd_handoff` 返回 `BLOCKS_P0_ASSUMPTION_WITHOUT_EVIDENCE` | 给 `impact=blocks-p0` 的假设补 evidence |
+| 用户只要 checklist 不想落盘 | 调用 `prd_handoff` 时传 `write: false` |
+| 交接后 coding agent 说没看到约束 | 确认把 `handoff.md` 和 `prd.json` 一起提供（handoff.md 第 1–3 章是硬约束） |
 
 ## 交付前自查
 
@@ -226,13 +254,14 @@ description: 产品需求文档（PRD）生成与验收清单流水线：把一�
 - [ ] AI 替用户做的每个决定都进了 `assumptions`（有 source；`blocks-p0` 有 evidence）
 - [ ] 每条 P0 被阻塞的问题都有 `default_assumption` 或覆盖假设；待确认问题都给了 owner
 - [ ] `prd_check` 返回 `ok: true`；warnings 要么修掉、要么在摘要里向用户说明
-- [ ] 摘要里给了绝对路径、统计、假设 N 条 / 待确认 M 条
+- [ ] `prd_handoff` 返回 `ready: true`（blockers 清零）后才交给 coding agent；handoff.md 已生成并检查过六章
+- [ ] 摘要里给了绝对路径、统计、假设 N 条 / 待确认 M 条、ready 结论
 
 ## 参考文件（按需读，不要一次全读）
 
 - `references/prd-template.md`：PRD 对象字段、假设/待确认账本规则与 10 章内容要求（组装 `prd` 前读）
 - `references/insight-analysis.md`：六维度洞察分析的完整问题清单（第 2 步读）
 - `references/competitive-analysis.md`：竞品搜索与报告模板（第 4 步读）
-- `references/ralph-json-format.md`：prd.json 结构（含 assumptions / open_questions）、字段映射与 Ralph 执行方式
+- `references/ralph-json-format.md`：prd.json 结构（含 assumptions / open_questions）、字段映射、Ralph 执行方式与 `prd_handoff` 门禁
 - `references/mermaid-export.md`：两张 Mermaid 图怎么生成、怎么预览
 - `references/templates/web-app.md` / `mobile-app.md` / `api.md` / `backend.md`：专项模板检查项（第 3 步读对应那一个）

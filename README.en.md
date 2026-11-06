@@ -12,7 +12,7 @@ The upstream project supplies the PRD method, templates and prompts; this plugin
         ↓
 ② Write the PRD (six-dimension insight analysis → pick a template → optional web_search competitor research → assemble the prd object)
         ↓
-③ prd_write outputs 5 files → prd_check until ok → summarize for the user
+③ prd_write outputs 5 files → prd_check until ok → prd_handoff gate (ready) → summarize for the user
 ```
 
 ## Capabilities
@@ -23,6 +23,7 @@ The upstream project supplies the PRD method, templates and prompts; this plugin
 | --- | --- |
 | `prd_write` | Writes a structured `prd` object into 5 files: `prd.md` (10 chapters), `prd.json` (snarktank/ralph compatible), `acceptance.md` (P0/P1/P2 grouped Given-When-Then checklist), `mindmap.mmd`, `flowchart.mmd`. Strict validation: missing `name` / `summary` / `user_stories`, or a story without `acceptance_criteria`, fails with a field-by-field explanation; the **assumption ledger** (`assumptions` / `open_questions`) validates id uniqueness, `source`/`impact` enums and `affects`/`blocks` references. |
 | `prd_check` | Validates an existing `prd.json`: JSON syntax, schema, at least 1 AC per story, at least 1 P0, non-empty `scope.in_scope`, unique story ids; plus the assumption ledger — a **P0 story blocked by an unanswered question with no default assumption is an error**, empty `assumptions` or a `blocks-p0` assumption without evidence is a warning. Returns `{ok, errors, warnings, stats}` with actionable messages. |
+| `prd_handoff` | **Pre-execution gate**: reads `prd.json` and decides whether the PRD is safe to hand to Ralph / an AI coding agent. Returns `ready` / `blockers[]` (4 codes) / `warnings[]` (3 codes) / `checklist` / `handoffPath` / `stats`; by default writes a six-chapter `handoff.md` atomically next to `prd.json` (`write: false` only returns the checklist). Read-only: never modifies `prd.json` or other artifacts. |
 
 ### Skill: `prd-generator`
 
@@ -32,7 +33,9 @@ Bundled with the plugin. It loads when the user says things like "write a PRD", 
 2. **Insight analysis** — six dimensions: industry, user pain points, competitor blind spots, counter-intuitive judgments, risks, growth levers;
 3. **Pick a template** — web-app / mobile-app / api / backend / general, and fold its checklists into the PRD fields;
 4. **Competitor research** (optional) — use DSH's `web_search`, produce a sourced comparison;
-5. **Assemble `prd` (including both ledgers) → `prd_write` → `prd_check` → fix until ok → summarize (including N assumptions / M open questions)**.
+5. **Assemble `prd` (including both ledgers) → `prd_write` → `prd_check` → fix until ok**;
+6. **Pre-execution gate**: `prd_handoff` → fix blockers and rerun until `ready=true`, producing `handoff.md`;
+7. **Summarize** for the user, including N assumptions / M open questions and the `ready` verdict (list blockers when false).
 
 All method docs and templates live under `skills/prd-generator/references/` (`prd-template.md`, `insight-analysis.md`, `competitive-analysis.md`, `ralph-json-format.md`, `mermaid-export.md`, `templates/{web-app,mobile-app,api,backend}.md`).
 
@@ -52,6 +55,28 @@ All three artifacts show the ledger:
 - `acceptance.md`: affected stories get `- 依赖假设：A1（inference，blocks-p0）`, blocked stories get `- ⚠ 待确认：Q1 — <question>`, and a blocked P0 without a default assumption gets `⚠ 待确认` in its heading.
 
 `prd_check` rule: **a P0 story blocked by `open_questions[].blocks` with neither a `default_assumption` nor a covering assumption → error** ("give a default assumption or downgrade"); empty `assumptions` and `impact=blocks-p0` without `evidence` are warnings. Older `prd.json` files without these fields still check fine (they only get the "assumptions is empty" warning, no crash).
+
+## Pre-execution gate: `prd_handoff` (0.3.0)
+
+Between "the PRD is written" and "it is safe to let an AI coding agent start" there is a gate. `prd_handoff` reads `prd.json` and produces a `ready` verdict plus a six-chapter handoff document:
+
+**Blockers (ready=false, must fix)**
+
+| Code | Meaning |
+| --- | --- |
+| `P0_BLOCKED_BY_OPEN_QUESTION` | A P0 story is blocked by an unanswered question with no `default_assumption` and no covering assumption |
+| `P0_WITHOUT_TASKS` | A P0 story has no `tasks` (Ralph cannot split work) |
+| `P0_WITHOUT_ACCEPTANCE` | A P0 story has no acceptance criteria |
+| `BLOCKS_P0_ASSUMPTION_WITHOUT_EVIDENCE` | A `blocks-p0` assumption has no `evidence` |
+
+**Warnings (non-blocking)**: `OPEN_QUESTION_WITHOUT_OWNER`, `NON_P0_BLOCKED`, `NO_ASSUMPTIONS`.
+
+`handoff.md` has six fixed chapters: ① must-confirm blockers ② adopted default assumptions (do not change during execution) ③ out of scope ④ execution order and tasks (P0→P1→P2, with tasks and acceptance checkboxes) ⑤ acceptance gate ⑥ generation info. Once `ready=true`, hand `handoff.md` together with `prd.json` to Ralph / the coding agent.
+
+```jsonc
+// write defaults to true: atomically write handoff.md next to prd.json
+{ "path": "/Users/me/Documents/PKM/prd-daily-checkin", "write": true }
+```
 
 ## Install
 
@@ -131,6 +156,7 @@ node scripts/smoke.mjs /tmp/prd-demo   # writes to a given directory
 | `acceptance.md` | P0/P1/P2 groups, Given-When-Then checkbox list per story; affected stories show their assumptions, blocked stories show "⚠ open question" | Self-testing and acceptance |
 | `mindmap.mmd` | Mermaid mind map | Render in GitHub / Obsidian / Feishu / VS Code |
 | `flowchart.mmd` | Mermaid user flow (P0 main path + later iterations + out-of-scope) | Walkthroughs in reviews |
+| `handoff.md` | Six-chapter execution handoff. Generated by `prd_handoff` (written by default, atomic overwrite); with `write: false` only returned | Constraints for the coding agent / Ralph |
 
 Priorities: **P0 = must ship for MVP; P1 = first iteration after MVP; P2 = long term.**
 
@@ -150,7 +176,7 @@ node --test test/*.test.mjs
 npm pack --dry-run
 ```
 
-Coverage: fake-ctx registration (tools + skill), `prd_write` end-to-end (content assertions for all 5 files, format subsets, overwrite, auto-filled ids/priorities), `prd_check` end-to-end (missing AC / missing P0 / empty `in_scope` / duplicate ids / invalid JSON, and more), the **assumption & open-question ledger (F2 acceptance criteria 1–6: backward compatibility, three-artifact rendering, invalid ledger writes nothing, blocked-P0 hard rule, legacy-format compatibility, acceptance readability)**, plus `output.schema` conformance.
+Coverage: fake-ctx registration (tools + skill), `prd_write` end-to-end (content assertions for all 5 files, format subsets, overwrite, auto-filled ids/priorities), `prd_check` end-to-end (missing AC / missing P0 / empty `in_scope` / duplicate ids / invalid JSON, and more), the **assumption & open-question ledger (F2 acceptance criteria 1–6)**, the **pre-execution gate `prd_handoff` (G2 acceptance criteria 1–7: ready case, 4 blocker codes, 3 warning codes, write on/off, directory/file paths and errors, legacy-format compatibility, six-chapter assertions and non-regression)**, plus `output.schema` conformance.
 
 ## License
 

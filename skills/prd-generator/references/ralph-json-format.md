@@ -104,6 +104,29 @@
 - **P1** = 重要但不阻塞 MVP，MVP 后第一个迭代。
 - **P2** = 锦上添花，长期规划。
 
+## 交给 Ralph 之前：`prd_handoff` 执行前门禁（0.3.0）
+
+`prd.json` 合规 ≠ 敢开工。交给 Ralph / AI coding agent 之前，调用 `prd_handoff({ path })` 过一道门禁：
+
+- **返回**：`ready`（`blockers.length === 0`）、`blockers[]`、`warnings[]`、`checklist`（六章 handoff.md）、`handoffPath`、`stats`；
+- **blocker（ready=false）**：
+  - `P0_BLOCKED_BY_OPEN_QUESTION`：P0 故事被未确认问题阻塞，且无 `default_assumption`、无 `affects` 覆盖假设；
+  - `P0_WITHOUT_TASKS`：P0 故事 `tasks` 为空；
+  - `P0_WITHOUT_ACCEPTANCE`：P0 故事 `acceptance_criteria` 为空；
+  - `BLOCKS_P0_ASSUMPTION_WITHOUT_EVIDENCE`：`impact=blocks-p0` 的假设没有 `evidence`；
+- **warning**：`OPEN_QUESTION_WITHOUT_OWNER`、`NON_P0_BLOCKED`、`NO_ASSUMPTIONS`（不阻塞，但建议处理）。
+
+`write: true`（默认）在 prd.json 同目录生成 `handoff.md`（覆盖旧文件、原子写）；`write: false` 只返回 checklist。`handoff.md` 固定六章：
+
+1. 执行前必须确认（blockers）—— 每条 `- [ ]`，并标 `（相关：US-001 / Q1）`
+2. 已采用的默认假设（执行时不得自行更改）—— `A1（inference，blocks-p0）：陈述 — 依据：…`
+3. 不要做的事（out of scope）
+4. 执行顺序与任务（按 P0 → P1 → P2）—— 每故事 `任务：1) … 2) …` + 验收勾选框
+5. 验收门禁（交付即验收）—— P0 AC 逐条通过；有 blockers 时不得开工
+6. 生成信息 —— 来源 / generator / 故事与 AC 统计
+
+**交接方式**：`ready=true` 后，把 `handoff.md` 与 `prd.json` 一起交给 Ralph / coding agent；执行时以 handoff.md 第 1–3 章为约束、第 4 章为顺序、第 5 章为完成标准。`prd_handoff` 只读 prd.json，不会修改它。
+
 ## Ralph 执行流程
 
 ```

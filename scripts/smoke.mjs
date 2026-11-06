@@ -1,12 +1,12 @@
 #!/usr/bin/env node
-// 手动冒烟：直接用真实样例跑一遍 prd_write + prd_check（不依赖 DSH 进程）。
+// 手动冒烟：直接用真实样例跑一遍 prd_write + prd_check + prd_handoff（不依赖 DSH 进程）。
 // 用法：node scripts/smoke.mjs [输出目录]
 //   不传目录时写到系统临时目录，跑完打印文件路径，可手动打开检查。
 import { mkdtemp } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join, resolve } from 'node:path'
 
-import { prdCheckTool, prdWriteTool } from '../lib/tools.js'
+import { prdCheckTool, prdHandoffTool, prdWriteTool } from '../lib/tools.js'
 
 const dir = process.argv[2] ? resolve(process.argv[2]) : await mkdtemp(join(tmpdir(), 'dsh-prd-smoke-'))
 
@@ -100,5 +100,14 @@ console.log(prdCheckTool.output.render({}, checked)[0].text)
 
 if (!checked.ok) {
   console.error('\n冒烟失败：prd_check.ok === false')
+  process.exitCode = 1
+}
+
+console.log('\n--- prd_handoff ---\n')
+const handoff = await prdHandoffTool.execute({ path: dir })
+console.log(prdHandoffTool.output.render({}, handoff)[0].text)
+
+if (!handoff.ready) {
+  console.error('\n冒烟失败：prd_handoff.ready === false')
   process.exitCode = 1
 }

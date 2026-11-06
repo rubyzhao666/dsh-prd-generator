@@ -12,7 +12,7 @@
         ↓
 ② PRD 写作（六维度洞察 → 选专项模板 → 可选 web_search 竞品分析 → 组装 prd 对象）
         ↓
-③ prd_write 落盘 5 个文件 → prd_check 校验到 ok → 给用户摘要
+③ prd_write 落盘 5 个文件 → prd_check 校验到 ok → prd_handoff 执行前门禁（ready）→ 给用户摘要
 ```
 
 ## 能力
@@ -23,6 +23,7 @@
 | --- | --- |
 | `prd_write` | 把结构化 `prd` 对象写成 5 个文件：`prd.md`（10 章）、`prd.json`（snarktank/ralph 兼容）、`acceptance.md`（P0/P1/P2 分组 + Given-When-Then 勾选清单）、`mindmap.mmd`、`flowchart.mmd`。严格校验：缺 `name` / `summary` / `user_stories` 或任一故事的 `acceptance_criteria` 会直接报错并逐条说明缺什么；**假设账本**（`assumptions` / `open_questions`）会校验 id 唯一、`source`/`impact` 枚举、`affects`/`blocks` 引用存在。 |
 | `prd_check` | 校验已有 `prd.json`：JSON 合法、schema、每条故事 AC ≥ 1、至少 1 条 P0、`scope.in_scope` 非空、故事 id 唯一；并校验假设账本——**P0 故事被未确认问题阻塞且无默认假设时报 error**，`assumptions` 为空 / `blocks-p0` 假设缺证据时报 warning。返回 `{ok, errors, warnings, stats}`，错误信息可直接指导修复。 |
+| `prd_handoff` | **执行前门禁**：读取 `prd.json`，判断这份 PRD 是否敢交给 Ralph / AI coding agent。返回 `ready` / `blockers[]`（4 类 code）/ `warnings[]`（3 类 code）/ `checklist` / `handoffPath` / `stats`；默认在同目录原子写六章 `handoff.md`（`write: false` 只返回 checklist）。只读 `prd.json`，不修改任何已有产物。 |
 
 ### Skill：`prd-generator`
 
@@ -32,7 +33,9 @@
 2. **洞察分析**：按六维度（行业洞察 / 用户痛点深挖 / 竞品盲区 / 反直觉判断 / 风险预判 / 增长杠杆）产出有判断的内容；
 3. **选模板**：Web 应用 / 移动端 / API / 后端服务 / 通用，把专项要求拆进 PRD 字段；
 4. **竞品分析**（可选）：用 DSH 的 `web_search` 搜真实竞品，输出带来源的对比报告；
-5. **组装 `prd` 对象（含两个账本字段）→ `prd_write` → `prd_check` → 修到通过 → 给用户摘要（含「假设 N 条 / 待确认 M 条」）**。
+5. **组装 `prd` 对象（含两个账本字段）→ `prd_write` → `prd_check` → 修到通过**；
+6. **执行前门禁**：`prd_handoff` → `ready=false` 时按 blockers 补齐后重跑，直到 `ready=true`，生成 `handoff.md`；
+7. **给用户摘要**：含「假设 N 条 / 待确认 M 条」与 `ready` 结论（false 时列 blockers）。
 
 方法论与模板都在 `skills/prd-generator/references/`：
 
@@ -66,6 +69,28 @@ references/
 - `acceptance.md`：受影响故事标注 `- 依赖假设：A1（inference，blocks-p0）`，被阻塞故事标注 `- ⚠ 待确认：Q1 — <问题>`，P0 被阻塞且无默认假设时标题带 `⚠ 待确认`。
 
 `prd_check` 硬规则：**任一 P0 故事被未确认问题阻塞、且既无 `default_assumption` 也无 `affects` 覆盖它的假设 → error**（提示必须先给默认假设或降级）；`assumptions` 为空、`impact=blocks-p0` 缺 `evidence` → warning。旧版 `prd.json`（没有这两个字段）仍可校验，只会得到「assumptions 为空」warning，不会 crash。
+
+## 执行前门禁：`prd_handoff`（0.3.0）
+
+「PRD 写完」和「敢交给 AI coding agent 执行」之间还有一道门禁。`prd_handoff` 读取 `prd.json`，给出 `ready` 结论和一份六章交接单：
+
+**blocker（ready=false，必须修）**
+
+| code | 含义 |
+| --- | --- |
+| `P0_BLOCKED_BY_OPEN_QUESTION` | P0 故事被未确认问题阻塞，且无 `default_assumption`、无 `affects` 覆盖它的假设 |
+| `P0_WITHOUT_TASKS` | P0 故事 `tasks` 为空（Ralph 无法拆任务） |
+| `P0_WITHOUT_ACCEPTANCE` | P0 故事验收标准为空 |
+| `BLOCKS_P0_ASSUMPTION_WITHOUT_EVIDENCE` | `impact=blocks-p0` 的假设缺 `evidence` |
+
+**warning（不阻塞）**：`OPEN_QUESTION_WITHOUT_OWNER`、`NON_P0_BLOCKED`、`NO_ASSUMPTIONS`。
+
+`handoff.md` 固定六章：①执行前必须确认（blockers）②已采用的默认假设（执行时不得自行更改）③不要做的事（out of scope）④执行顺序与任务（按 P0→P1→P2，含任务与验收勾选）⑤验收门禁（交付即验收）⑥生成信息。`ready=true` 后把 `handoff.md` 与 `prd.json` 一起交给 Ralph / coding agent。
+
+```jsonc
+// write 默认 true：在 prd.json 同目录原子写 handoff.md
+{ "path": "/Users/me/Documents/PKM/prd-daily-checkin", "write": true }
+```
 
 ## 安装
 
@@ -149,6 +174,7 @@ node scripts/smoke.mjs /tmp/prd-demo   # 写到指定目录
 | `acceptance.md` | 按 P0/P1/P2 分组，每条故事一组 Given-When-Then 勾选清单；受影响故事标注依赖假设、被阻塞故事标注「⚠ 待确认」 | 开发自测、验收、转测试用例 |
 | `mindmap.mmd` | Mermaid 思维导图 | GitHub / Obsidian / 飞书 / VS Code 渲染 |
 | `flowchart.mmd` | Mermaid 用户流程图（P0 主线 + 后续迭代 + 明确不做） | 评审时讲流程 |
+| `handoff.md` | 执行交接单（6 章）。由 `prd_handoff` 生成（默认写，原子覆盖）；`write: false` 时只在返回值里 | 交给 Ralph / AI coding agent 的开工约束 |
 
 优先级约定：**P0 = MVP 必须完成（阻塞发布）；P1 = MVP 后第一个迭代；P2 = 长期规划。**
 
@@ -168,7 +194,7 @@ node --test test/*.test.mjs
 npm pack --dry-run
 ```
 
-测试覆盖：假 ctx 注册（工具 + skill）、`prd_write` 端到端（5 个文件内容断言、格式子集、覆盖写、自动补 id/优先级）、`prd_check` 端到端（缺 AC / 缺 P0 / `in_scope` 空 / id 重复 / 非法 JSON 等坏例子）、**假设与待确认账本（F2 验收标准 1–6：向后兼容、三产物渲染、非法账本不落盘、P0 阻塞硬规则、旧格式兼容、acceptance 可读性）**、以及各自 `output.schema` 一致性。
+测试覆盖：假 ctx 注册（工具 + skill）、`prd_write` 端到端（5 个文件内容断言、格式子集、覆盖写、自动补 id/优先级）、`prd_check` 端到端（缺 AC / 缺 P0 / `in_scope` 空 / id 重复 / 非法 JSON 等坏例子）、**假设与待确认账本（F2 验收标准 1–6）**、**执行前门禁 `prd_handoff`（G2 验收标准 1–7：ready 案例、4 类 blocker、3 类 warning、write on/off、目录/文件 path 与错误、旧格式兼容、六章断言与不回归）**、以及各自 `output.schema` 一致性。
 
 ## 许可
 

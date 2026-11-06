@@ -188,4 +188,6 @@
 ## 生成之后
 
 - 用 `prd_check` 校验；`errors` 必须清零，`warnings` 尽量清零。
+- 要交给 Ralph / AI coding agent 执行前，再跑 `prd_handoff`（`path` 传输出目录）：`ready=false` 时按 `blockers` 回到本文的字段规则补齐（P0 的 tasks / 验收标准 / 默认假设 / blocks-p0 假设的 evidence），直到 `ready=true`，并把生成的 `handoff.md` 与 `prd.json` 一起交接。
+- `prd_handoff` 的四类 blocker：`P0_BLOCKED_BY_OPEN_QUESTION`、`P0_WITHOUT_TASKS`、`P0_WITHOUT_ACCEPTANCE`、`BLOCKS_P0_ASSUMPTION_WITHOUT_EVIDENCE`；三类 warning：`OPEN_QUESTION_WITHOUT_OWNER`、`NON_P0_BLOCKED`、`NO_ASSUMPTIONS`。
 - 需求变化时更新 `prd` 对象重新 `prd_write`，不要手改生成文件（会被覆盖）。

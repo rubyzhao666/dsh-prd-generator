@@ -92,6 +92,32 @@ export function validPrd(overrides = {}) {
   }
 }
 
+// 带完整账本的 prd.json（Ralph 格式）fixture，供 prd_handoff 测试：
+// US-001 是 P0（有 tasks/AC），Q1 有默认假设 A1、A1 有 evidence → ready=true。
+export function prdJsonWithLedger(overrides = {}) {
+  const json = validPrdJson()
+  json.assumptions = [
+    {
+      id: 'A1',
+      statement: '假设首版只支持 iOS',
+      source: 'inference',
+      impact: 'blocks-p0',
+      affects: ['US-001'],
+      evidence: '团队只有 iOS 开发者',
+    },
+  ]
+  json.open_questions = [
+    {
+      id: 'Q1',
+      question: '首版是否需要 Android？',
+      blocks: ['US-001'],
+      default_assumption: 'A1',
+      owner: '用户',
+    },
+  ]
+  return { ...json, ...overrides }
+}
+
 // 带完整假设账本的样例 PRD（F2 验收标准 2/6 用）：
 // - A1 阻塞 P0 但有 evidence、affects US-001；
 // - Q1/Q2 都带 default_assumption，因此 prd_check 不报 P0 阻塞 error。

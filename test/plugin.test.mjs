@@ -30,7 +30,7 @@ test('plugin id / package name / cordis patch id 三者一致', async () => {
 test('registers every tool with the expected contract', () => {
   const { ctx, tools } = fakeCtx()
   apply(ctx)
-  assert.deepEqual([...tools.keys()].sort(), ['prd_check', 'prd_write'])
+  assert.deepEqual([...tools.keys()].sort(), ['prd_check', 'prd_handoff', 'prd_write'])
   for (const tool of TOOLS) {
     const registered = tools.get(tool.name)
     assert.ok(registered, `missing tool ${tool.name}`)
