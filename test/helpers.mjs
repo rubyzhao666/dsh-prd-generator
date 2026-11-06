@@ -92,6 +92,55 @@ export function validPrd(overrides = {}) {
   }
 }
 
+// 带完整假设账本的样例 PRD（F2 验收标准 2/6 用）：
+// - A1 阻塞 P0 但有 evidence、affects US-001；
+// - Q1/Q2 都带 default_assumption，因此 prd_check 不报 P0 阻塞 error。
+export function prdWithLedger(overrides = {}) {
+  const prd = validPrd()
+  prd.assumptions = [
+    {
+      id: 'A1',
+      statement: '假设目标用户每天至少有 10 分钟连续学习时间',
+      source: 'inference',
+      impact: 'blocks-p0',
+      affects: ['US-001'],
+      evidence: '用户提到主要在通勤时学习，单次 10–15 分钟',
+    },
+    {
+      id: 'A2',
+      statement: '假设发音评分使用第三方 API，不自研声学模型',
+      source: 'industry',
+      impact: 'changes-scope',
+      affects: ['US-002'],
+    },
+    {
+      id: 'A3',
+      statement: '假设排行榜首版只做本周榜',
+      source: 'user',
+      impact: 'minor',
+      affects: ['US-003'],
+      evidence: '用户原话：先看本周就行',
+    },
+  ]
+  prd.open_questions = [
+    {
+      id: 'Q1',
+      question: '发音评分服务的预算上限是多少？',
+      blocks: ['US-002'],
+      default_assumption: 'A2',
+      owner: '产品负责人',
+    },
+    {
+      id: 'Q2',
+      question: '首版是否需要支持离线打卡？',
+      blocks: ['US-001'],
+      default_assumption: '首版不做离线，弱网下允许补卡',
+      owner: '用户',
+    },
+  ]
+  return { ...prd, ...overrides }
+}
+
 // 精简版合法 prd.json（模拟人工/旧版本产物）。
 export function validPrdJson(overrides = {}) {
   return {

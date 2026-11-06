@@ -1,6 +1,6 @@
 ---
 name: prd-generator
-description: 产品需求文档（PRD）生成与验收清单流水线：把一句话需求或零散想法，先一次性问 3–5 个关键澄清问题，做六维度洞察分析，可选 web_search 竞品分析，再调用 prd_write 生成 prd.md（9 章）/ prd.json（snarktank/ralph 兼容）/ acceptance.md / mindmap.mmd / flowchart.mmd，最后用 prd_check 校验到通过并给用户摘要。用户说「写 PRD」「产品需求文档」「需求文档」「功能规划」「验收标准」「把需求整理成 PRD」「生成 prd.json」时使用。
+description: 产品需求文档（PRD）生成与验收清单流水线：把一句话需求或零散想法，先一次性问 3–5 个关键澄清问题，做六维度洞察分析，可选 web_search 竞品分析；再把 AI 替用户做的决定整理成假设与待确认问题账本（assumptions / open_questions），调用 prd_write 生成 prd.md（10 章）/ prd.json（snarktank/ralph 兼容）/ acceptance.md / mindmap.mmd / flowchart.mmd，最后用 prd_check 校验到通过并给用户摘要（含假设 N 条 / 待确认 M 条）。用户说「写 PRD」「产品需求文档」「需求文档」「功能规划」「验收标准」「把需求整理成 PRD」「生成 prd.json」「记录假设」「待确认问题」时使用。
 ---
 
 # PRD 生成器（DSH 版）
@@ -13,7 +13,7 @@ description: 产品需求文档（PRD）生成与验收清单流水线：把一�
 - 本 skill 产出的是**产品需求文档**，不是技术方案、不是排期、不写业务代码。
 - 不替用户做重大业务决策：涉及定价、合规、战略方向时，写成「待决策项 + 建议 + 理由」交给用户确认。
 - 不编造数据和事实。竞品信息只写 `web_search` 真实搜到的内容，并带来源链接；搜不到就说搜不到。
-- 用户说「别问了直接写」时跳过提问，但要在摘要里列出你补的假设。
+- 用户说「别问了直接写」时跳过提问，但**必须**把你替用户做的每个决定写进 `assumptions` 账本（`source: "inference"`），并在摘要里列出；否则文件一分享，假设就丢了。
 
 ## 前置：确认工作区路径
 
@@ -40,8 +40,17 @@ description: 产品需求文档（PRD）生成与验收清单流水线：把一�
 
 - **一次问完**，不要问一个等一个。问题总数 3–5 个，最多一轮；用户回答后直接进入下一阶段。
 - 用户已给足信息、或明确说「别问了」→ 跳过提问，用一句话说明你据什么生成。
-- 用户只答了一部分 → 剩余部分采用最合理假设，并在第 8 步摘要的「假设与风险」里列出来；涉及取舍的假设要标出来让用户确认。
+- 用户只答了一部分 → 剩余部分采用最合理假设，并在第 8 步摘要里列出来；涉及取舍的假设要标出来让用户确认。
 - 不要问文档里已写明的信息。
+
+**澄清答案要落成两个清单**（第 5 步写进 `prd` 对象）：
+
+| 清单 | 放什么 | 判断规则 |
+| --- | --- | --- |
+| `assumptions` | 你替用户做的每一个决定 | 用户原话里明确的 → `source: "user"`；你推断补的 → `"inference"`；按行业默认做法补的 → `"industry"` |
+| `open_questions` | 还没答案、需要用户拍板的问题 | 影响 P0 或范围的先问；能给出兜底方案就写 `default_assumption` |
+
+没有假设也要写至少 1 条 `source: "user"` 的假设（例如「用户明确要求首版只做 Web」），否则 `prd_check` 会给 warning。
 
 ### 第 2 步：洞察分析（写进 `insights` 字段）
 
@@ -94,6 +103,8 @@ description: 产品需求文档（PRD）生成与验收清单流水线：把一�
 | `insights` | | 第 2 步的 Markdown 全文 |
 | `competitive_analysis` | | 第 4 步的 Markdown（可选） |
 | `template` | | `web-app` / `mobile-app` / `api` / `backend` / `general` |
+| `assumptions` | 强烈建议 | 假设账本，见下；AI 替用户做的决定必须记录（可为空数组） |
+| `open_questions` | 强烈建议 | 待确认问题，见下；没有就传空数组 |
 
 `user_stories` 每条故事：
 
@@ -104,14 +115,41 @@ description: 产品需求文档（PRD）生成与验收清单流水线：把一�
 - `tasks`：2–5 条可执行开发任务（Ralph 会按它执行）；
 - `complexity`：`low` / `medium` / `high`。
 
+**假设账本 `assumptions`**（AI 替用户做的决定，随文件走、可被校验）：
+
+```jsonc
+{
+  "id": "A1",                                  // 必填，唯一（建议 A1、A2）
+  "statement": "假设首版只支持 iOS",             // 必填，一句话
+  "source": "inference",                       // 必填：user / inference / industry
+  "impact": "blocks-p0",                       // 必填：blocks-p0 / changes-scope / minor
+  "affects": ["US-001"],                       // 可选：受影响的用户故事 id（必须存在）
+  "evidence": "用户提到团队只有 iOS 开发者"       // 可选：依据（blocks-p0 强烈建议写）
+}
+```
+
+**待确认问题 `open_questions`**：
+
+```jsonc
+{
+  "id": "Q1",                                  // 必填，唯一（建议 Q1、Q2）
+  "question": "首版是否需要支持 Android？",      // 必填，一条一个问题
+  "blocks": ["US-001"],                        // 可选：被阻塞的用户故事 id（必须存在）
+  "default_assumption": "A1 或一句话默认方案",    // 可选：但 P0 被阻塞时必须给
+  "owner": "用户"                               // 可选：谁来回答（用户/法务/老板…）
+}
+```
+
 硬性规则（违反会被 `prd_write` 拒绝或 `prd_check` 判错）：
 
 1. `name`、`summary`、`user_stories` 缺一不可；
 2. 每条故事至少 1 条非空 `acceptance_criteria`；
 3. 至少 1 条 P0 故事；`scope.in_scope` 至少 1 条；
-4. 故事 `id` 全局唯一；
+4. 故事 `id` 全局唯一（`assumptions` / `open_questions` 的 id 也全局唯一）；
 5. 验收标准写成 Given-When-Then，否则 prd_check 会给 warning；
-6. `tasks` 别留空，否则 Ralph 拿到手没法开工。
+6. `tasks` 别留空，否则 Ralph 拿到手没法开工；
+7. `source` / `impact` 必须在枚举内；`affects` / `blocks` 引用的故事 id 必须存在；
+8. **P0 故事被 `open_questions[].blocks` 阻塞时，必须给 `default_assumption`，或有一条 `affects` 覆盖它的假设**；否则 `prd_check` 报 error（提示「必须先给默认假设或降级」）。
 
 ### 第 6 步：调用 `prd_write`
 
@@ -121,7 +159,7 @@ description: 产品需求文档（PRD）生成与验收清单流水线：把一�
 - `prd`：第 5 步组装的对象；
 - `formats`：可选，不传 = 全部 5 个文件。
 
-成功会生成 5 个文件：`prd.md`（9 章）、`prd.json`（Ralph 兼容）、`acceptance.md`（P0/P1/P2 勾选清单）、`mindmap.mmd`、`flowchart.mmd`。
+成功会生成 5 个文件：`prd.md`（10 章，第 10 章是假设与待确认）、`prd.json`（Ralph 兼容，含 `assumptions` / `open_questions`）、`acceptance.md`（P0/P1/P2 勾选清单 + 依赖假设/待确认标记）、`mindmap.mmd`、`flowchart.mmd`。
 
 `prd_write` 报错时：错误信息会逐条列出哪个字段缺失/不合法。**补齐 `prd` 对象后原样重试**（同一个 `dir` 会覆盖同名文件）；不要换目录、不要绕过校验、不要手写文件。
 
@@ -129,7 +167,11 @@ description: 产品需求文档（PRD）生成与验收清单流水线：把一�
 
 - 参数 `path` 传 `prd_write` 返回的 `dir`（或 `prd.json` 绝对路径）；
 - **`errors` 必须全部修掉**：改 `prd` 对象 → 重新 `prd_write` → 再 `prd_check`；
-- `warnings` 尽量修：`tasks` 为空、验收标准不是 Given-When-Then、缺 P0、id 格式不规范，都会影响下游 Ralph 和验收；
+- `warnings` 尽量修：`tasks` 为空、验收标准不是 Given-When-Then、id 格式不规范、`assumptions` 为空、`impact=blocks-p0` 但缺 `evidence`，都会影响下游 Ralph / 评审；
+- **`prd_check` 关于假设账本的规则**：
+  - error：P0 故事被未确认问题阻塞，且既无 `default_assumption`、也无 `affects` 覆盖它的假设 → 补默认假设或把故事降级为 P1/P2；
+  - warning：`assumptions` 为空 → 至少补 1 条（全部来自用户原话时写 `source: "user"`）；
+  - warning：`impact: "blocks-p0"` 但 `evidence` 为空 → 补依据（用户原话 / 搜索结果 / 行业惯例）；
 - 循环上限建议 3 轮；仍修不好就如实告诉用户还剩什么问题和为什么。
 
 ### 第 8 步：给用户摘要（不要把全文贴进对话）
@@ -142,7 +184,7 @@ description: 产品需求文档（PRD）生成与验收清单流水线：把一�
 4. **MVP 范围**：做几项、不做几项（各列 1–2 条例子）；
 5. **洞察摘要**：3–5 条最有判断力的结论（不是复述文档）；
 6. **文件路径**：5 个文件的绝对路径 + 校验结果（`prd_check` 是否通过）；
-7. **假设与待确认**：你替用户做的假设、需要用户拍板的问题、信息缺口。
+7. **假设与待确认**：`假设 N 条 / 待确认 M 条`（取自 `prd_check.stats`）。至少列出：`impact=blocks-p0` 的假设（带 evidence 摘要）、每条待确认问题（id + 一句话 + 默认假设 + owner）、以及信息缺口。
 
 用户要看全文时，用 `read` 读 `prd.md` 再贴或分段讲，不要凭记忆复述。
 
@@ -150,9 +192,9 @@ description: 产品需求文档（PRD）生成与验收清单流水线：把一�
 
 | 文件 | 内容 | 用途 |
 | --- | --- | --- |
-| `prd.md` | 9 章：概览 / 用户故事 / 功能详情 / 验收标准 / 非功能需求 / 技术考虑 / MVP 范围 / 成功指标 / 洞察与判断 | 给人读、评审、存档 |
-| `prd.json` | snarktank/ralph 兼容结构：`user_stories[]`、`scope`、`tech_requirements`… + `_meta` | 给 AI coding agent（Ralph）自动执行 |
-| `acceptance.md` | 按 P0/P1/P2 分组，每条故事一组 Given-When-Then 勾选清单 | 开发自测、验收、转测试用例 |
+| `prd.md` | 10 章：概览 / 用户故事（含「依赖假设」列）/ 功能详情 / 验收标准 / 非功能需求 / 技术考虑 / MVP 范围 / 成功指标 / 洞察与判断 / 假设与待确认 | 给人读、评审、存档 |
+| `prd.json` | snarktank/ralph 兼容结构：`user_stories[]`、`scope`、`assumptions[]`、`open_questions[]`、`tech_requirements`… + `_meta`（含 `assumption_count` / `open_question_count`） | 给 AI coding agent（Ralph）自动执行 |
+| `acceptance.md` | 按 P0/P1/P2 分组，每条故事一组 Given-When-Then 勾选清单；受影响故事标注「依赖假设」、被阻塞故事标注「⚠ 待确认」 | 开发自测、验收、转测试用例 |
 | `mindmap.mmd` | Mermaid 思维导图 | GitHub / Obsidian / 飞书 / VS Code 渲染 |
 | `flowchart.mmd` | Mermaid 用户流程图（P0 主线 + MVP 后迭代 + 明确不做） | 评审时讲流程 |
 
@@ -168,6 +210,11 @@ description: 产品需求文档（PRD）生成与验收清单流水线：把一�
 | 用户中途改需求 | 更新 `prd` 对象，重新 `prd_write` + `prd_check`（会覆盖旧文件），不要手改生成文件 |
 | 用户要的格式没生成 | 重新 `prd_write`，`formats` 明确列出需要的类型 |
 | 竞品搜不到 | 如实说明，`competitive_analysis` 写「未找到可靠公开信息」+ 需要用户提供的信息；不要编 |
+| `prd_check` 报「P0 故事 US-xxx 依赖未确认问题 Qx」 | 给该问题补 `default_assumption`（assumptions id 或一句话），或把故事降级为 P1/P2，或让某条假设 `affects` 覆盖该故事 |
+| `prd_write` 报 source/impact 不在枚举内 | 改成 `user` / `inference` / `industry`，`blocks-p0` / `changes-scope` / `minor` |
+| `prd_write` 报 affects/blocks 引用不存在的故事 id | 用用户故事列表里的真实 id（`US-001` 这种），先跑 `prd_check` 不通过时先修故事 |
+| `prd_check` warning「assumptions 为空」 | 补至少 1 条假设；全部来自用户原话也要写 `source: "user"` |
+| `prd_check` warning「blocks-p0 但 evidence 为空」 | 给该假设补依据（用户原话 / 搜索结果 / 行业惯例说明） |
 
 ## 交付前自查
 
@@ -176,14 +223,16 @@ description: 产品需求文档（PRD）生成与验收清单流水线：把一�
 - [ ] `scope.in_scope` / `out_of_scope` 都写清了（明确「不做什么」）
 - [ ] 成功指标可量化，不是「体验更好」
 - [ ] 洞察分析六个维度都有具体判断，不是资料复述
+- [ ] AI 替用户做的每个决定都进了 `assumptions`（有 source；`blocks-p0` 有 evidence）
+- [ ] 每条 P0 被阻塞的问题都有 `default_assumption` 或覆盖假设；待确认问题都给了 owner
 - [ ] `prd_check` 返回 `ok: true`；warnings 要么修掉、要么在摘要里向用户说明
-- [ ] 摘要里给了绝对路径、统计、假设与待确认项
+- [ ] 摘要里给了绝对路径、统计、假设 N 条 / 待确认 M 条
 
 ## 参考文件（按需读，不要一次全读）
 
-- `references/prd-template.md`：PRD 对象字段与 9 章内容要求（组装 `prd` 前读）
+- `references/prd-template.md`：PRD 对象字段、假设/待确认账本规则与 10 章内容要求（组装 `prd` 前读）
 - `references/insight-analysis.md`：六维度洞察分析的完整问题清单（第 2 步读）
 - `references/competitive-analysis.md`：竞品搜索与报告模板（第 4 步读）
-- `references/ralph-json-format.md`：prd.json 结构、字段映射与 Ralph 执行方式
+- `references/ralph-json-format.md`：prd.json 结构（含 assumptions / open_questions）、字段映射与 Ralph 执行方式
 - `references/mermaid-export.md`：两张 Mermaid 图怎么生成、怎么预览
 - `references/templates/web-app.md` / `mobile-app.md` / `api.md` / `backend.md`：专项模板检查项（第 3 步读对应那一个）

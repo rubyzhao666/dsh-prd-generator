@@ -18,7 +18,10 @@ test('prd_write 产物可以通过 prd_check（目录参数）', async () => {
   const value = await prdCheckTool.execute({ path: dir })
   assert.equal(value.ok, true)
   assert.deepEqual(value.errors, [])
-  assert.deepEqual(value.warnings, [])
+  // 0.2.0：没传 assumptions 的旧调用仍可写/可 check，但要给「assumptions 为空」warning（向后兼容的显式提示）。
+  assert.equal(value.warnings.length, 1)
+  assert.ok(value.warnings[0].includes('assumptions 为空'))
+  assert.ok(value.warnings[0].includes('source=user'))
   assert.deepEqual(value.stats, {
     stories: 3,
     acceptanceCriteria: 4,
@@ -27,6 +30,8 @@ test('prd_write 产物可以通过 prd_check（目录参数）', async () => {
     p2: 0,
     inScope: 2,
     outOfScope: 2,
+    assumptions: 0,
+    openQuestions: 0,
   })
   assert.equal(value.path, join(dir, 'prd.json'))
   const rendered = prdCheckTool.output.render({}, value)[0].text
@@ -97,7 +102,7 @@ test('坏例子：非法 JSON → ok=false（不抛错）并给修复建议', as
   assert.equal(value.ok, false)
   assert.ok(value.errors.some((error) => error.includes('不是合法 JSON')))
   assert.ok(value.errors.some((error) => error.includes('prd_write')))
-  assert.deepEqual(value.stats, { stories: 0, acceptanceCriteria: 0, p0: 0, p1: 0, p2: 0, inScope: 0, outOfScope: 0 })
+  assert.deepEqual(value.stats, { stories: 0, acceptanceCriteria: 0, p0: 0, p1: 0, p2: 0, inScope: 0, outOfScope: 0, assumptions: 0, openQuestions: 0 })
 })
 
 test('坏例子：顶层不是对象 / user_stories 不是数组', async () => {

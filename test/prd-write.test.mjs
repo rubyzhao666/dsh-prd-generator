@@ -28,6 +28,8 @@ test('生成全部 5 个文件，内容符合 GUIDE §8.2', async () => {
     features: 2,
     inScope: 2,
     outOfScope: 2,
+    assumptions: 0,
+    openQuestions: 0,
   })
 
   for (const file of value.files) {

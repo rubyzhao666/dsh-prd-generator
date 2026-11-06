@@ -1,6 +1,6 @@
 # PRD 对象字段与内容要求
 
-`prd_write` 接收的就是本文描述的 `prd` 对象。工具会把它确定性地渲染成 `prd.md`（9 章）、`prd.json`（Ralph 兼容）、`acceptance.md`（勾选清单）和两张 Mermaid 图。
+`prd_write` 接收的就是本文描述的 `prd` 对象。工具会把它确定性地渲染成 `prd.md`（10 章）、`prd.json`（Ralph 兼容）、`acceptance.md`（勾选清单）和两张 Mermaid 图。
 所以你只需要把**内容**写好：字段该有的都有、故事能验收、范围说得清。
 
 ## 字段清单
@@ -32,7 +32,26 @@
   "tech": ["前端：React Native", "后端：Node.js", "数据库：PostgreSQL"],
   "insights": "### 维度一：行业洞察\n…",
   "competitive_analysis": "## 竞品分析\n…",
-  "template": "mobile-app"
+  "template": "mobile-app",
+  "assumptions": [
+    {
+      "id": "A1",
+      "statement": "假设目标用户每天至少有 10 分钟连续学习时间",
+      "source": "inference",
+      "impact": "blocks-p0",
+      "affects": ["US-001"],
+      "evidence": "用户提到主要在通勤时学习"
+    }
+  ],
+  "open_questions": [
+    {
+      "id": "Q1",
+      "question": "发音评分服务的预算上限是多少？",
+      "blocks": ["US-002"],
+      "default_assumption": "A2",
+      "owner": "产品负责人"
+    }
+  ]
 }
 ```
 
@@ -55,6 +74,8 @@
 | `insights` | 六维度洞察分析，有判断、有推理 | 行业新闻复述 |
 | `competitive_analysis` | 只写真实搜到的竞品，带来源 | 编造竞品数据 |
 | `template` | 选一个专项模板，决定内容检查项 | 乱填或不填 |
+| `assumptions` | AI 替用户做的每个决定都记录；`source` 与 `impact` 如实标；`blocks-p0` 写依据 | 一个假设都不写，或把「用户明确说的」标成 inference |
+| `open_questions` | 一条问题一件事；影响 P0 的必须给 `default_assumption`；写明 owner | 把待确认问题藏进正文，或给了默认假设却不写 |
 
 ## 用户故事写法
 
@@ -78,14 +99,71 @@
 
 格式：`给定 [前置条件]，当 [操作/触发]，那么 [可观察的结果]`。英文场景可写 `Given …, When …, Then …`。
 
-## 专项模板与 9 章内容
+## 假设与待确认账本（assumptions / open_questions）
 
-`prd.md` 固定 9 章，专项模板不新增章节，而是让对应专项内容落到正确章节：
+0.2.0 起，`prd` 对象可以（也强烈建议）带两个账本字段。它们会渲染进三份产物：
+
+- `prd.md` 第 10 章（假设表 + 待确认表），第 2 章用户故事表新增「依赖假设」列；
+- `prd.json` 顶层 `assumptions` / `open_questions`，`_meta` 带 `assumption_count` / `open_question_count`；
+- `acceptance.md` 受影响故事下标「依赖假设」，被阻塞故事下标「⚠ 待确认」。
+
+### assumptions（AI 替用户做的决定）
+
+| 字段 | 必填 | 取值 / 说明 |
+| --- | --- | --- |
+| `id` | ✅ | 唯一，建议 `A1`、`A2`；与 `open_questions` 的 id 全局不重复 |
+| `statement` | ✅ | 一句话写清你替用户决定了什么，要具体到可验证 |
+| `source` | ✅ | `user`（用户原话）/ `inference`（你推断的）/ `industry`（行业默认做法） |
+| `impact` | ✅ | `blocks-p0`（不确定就没法做 P0）/ `changes-scope`（改变了 MVP 范围）/ `minor`（影响较小） |
+| `affects` | | 受影响的用户故事 id 数组，**必须是真实存在的故事 id** |
+| `evidence` | | 依据：用户原话 / 搜索结果 / 行业惯例说明；`impact=blocks-p0` 时强烈建议写 |
+
+质量标准：
+
+- 一条假设只对应一个决定；「假设用户会喜欢」不是假设，是愿望。
+- 用户已经明确说过的，`source` 写 `user`；你补的写 `inference`；抄行业默认做法的写 `industry`。
+- `impact` 要诚实：影响 P0 可行性的必须写 `blocks-p0`，不要为了好看都写 `minor`。
+
+### open_questions（待确认问题）
+
+| 字段 | 必填 | 取值 / 说明 |
+| --- | --- | --- |
+| `id` | ✅ | 唯一，建议 `Q1`、`Q2` |
+| `question` | ✅ | 一条一个问题，最好带背景和选项 |
+| `blocks` | | 被阻塞的用户故事 id 数组，**必须是真实存在的故事 id** |
+| `default_assumption` | | 默认假设：`assumptions` 里的 id（如 `"A2"`）或直接一句话；P0 被阻塞时**必须**给 |
+| `owner` | | 谁来回答（用户 / 法务 / 老板 / 产品负责人…） |
+
+### 硬规则（prd_check 会判）
+
+1. 任一 P0 故事被 `open_questions[].blocks` 阻塞，且既无 `default_assumption`、也无 `affects` 覆盖它的假设 → **error**：`P0 故事 US-xxx 依赖未确认问题 Q1，必须先给默认假设或降级`。
+2. `assumptions` 为空 → **warning**：「AI 生成的 PRD 必须显式记录假设；若全部来自用户原话，请写明 source=user 的假设」。
+3. `impact=blocks-p0` 但 `evidence` 为空 → **warning**：补依据，否则评审无法判断该假设是否成立。
+4. `prd_write` 会严格拒绝：非法 `source`/`impact`、重复 id、`affects`/`blocks` 引用不存在的故事。
+
+### 例子
+
+```jsonc
+"assumptions": [
+  { "id": "A1", "statement": "假设首版仅支持 iOS", "source": "inference", "impact": "blocks-p0",
+    "affects": ["US-001"], "evidence": "用户团队只有 iOS 开发者" },
+  { "id": "A2", "statement": "假设评分服务按调用量付费", "source": "industry", "impact": "changes-scope",
+    "affects": ["US-002"] }
+],
+"open_questions": [
+  { "id": "Q1", "question": "评分服务预算上限？", "blocks": ["US-002"],
+    "default_assumption": "A2", "owner": "产品负责人" }
+]
+```
+
+## 专项模板与 10 章内容
+
+`prd.md` 固定 10 章，专项模板不新增章节，而是让对应专项内容落到正确章节：
 
 | 章节 | 写什么 | 专项模板补充点 |
 | --- | --- | --- |
 | 1. 功能概览 | background / target_users | — |
-| 2. 用户故事 | user_stories 表格 | — |
+| 2. 用户故事 | user_stories 表格 + 「依赖假设」列 | — |
 | 3. 功能详情 | features + 明确不做 | Web：页面清单；App：导航结构 |
 | 4. 验收标准 | 每条故事 Given-When-Then | API：错误码 / 幂等；App：离线 |
 | 5. 非功能需求 | non_functional | 性能、安全、兼容性、可访问性 |
@@ -93,6 +171,7 @@
 | 7. MVP 范围 | scope | — |
 | 8. 成功指标 | metrics | — |
 | 9. 洞察与判断 | insights + competitive_analysis | — |
+| 10. 假设与待确认 | assumptions + open_questions | — |
 
 ## 生成前自检
 
@@ -101,7 +180,10 @@
 3. 每个 `id` 唯一（`US-001` 递增）；
 4. AC 全部通过「可判定 / 单一 / 有前提」三条；
 5. `tasks` 每条故事 2–5 条；
-6. `insights` 六个维度齐全，且有具体判断而不是资料复述。
+6. `insights` 六个维度齐全，且有具体判断而不是资料复述；
+7. 你替用户做的决定都进了 `assumptions`（每条有 `source`；`blocks-p0` 有 `evidence`）；
+8. 每条被 `blocks` 的 P0 故事都有 `default_assumption` 或被某条假设 `affects` 覆盖；
+9. `affects` / `blocks` 里的故事 id 都真实存在，假设与问题的 id 没有重复。
 
 ## 生成之后
 

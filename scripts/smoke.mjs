@@ -62,6 +62,33 @@ const prd = {
     '### 维度一：行业洞察\n语言学习赛道增速放缓，但打卡机制仍是留存核心。\n\n### 维度四：反直觉判断\n打卡不是功能，是承诺机制。',
   competitive_analysis: '## 竞品分析\n\n| 产品 | 卖点 |\n| --- | --- |\n| 竞品 A | 打卡提醒 |',
   template: 'mobile-app',
+  // 0.2.0：假设与待确认问题账本（会渲染进 3 个产物并被 prd_check 校验）
+  assumptions: [
+    {
+      id: 'A1',
+      statement: '假设目标用户每天至少有 10 分钟连续学习时间',
+      source: 'inference',
+      impact: 'blocks-p0',
+      affects: ['US-001'],
+      evidence: '用户提到主要在通勤时学习',
+    },
+    {
+      id: 'A2',
+      statement: '假设发音评分使用第三方 API，不自研模型',
+      source: 'industry',
+      impact: 'changes-scope',
+      affects: ['US-002'],
+    },
+  ],
+  open_questions: [
+    {
+      id: 'Q1',
+      question: '发音评分服务的预算上限是多少？',
+      blocks: ['US-002'],
+      default_assumption: 'A2',
+      owner: '产品负责人',
+    },
+  ],
 }
 
 console.log(`输出目录：${dir}\n`)

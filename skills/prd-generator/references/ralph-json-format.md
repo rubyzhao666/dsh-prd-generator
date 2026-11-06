@@ -43,13 +43,34 @@
     "business": ["7 日留存：≥ 35%"],
     "technical": ["接口 P95 延迟：< 1s"]
   },
+  "assumptions": [
+    {
+      "id": "A1",
+      "statement": "假设目标用户每天至少有 10 分钟连续学习时间",
+      "source": "inference",
+      "impact": "blocks-p0",
+      "affects": ["US-001"],
+      "evidence": "用户提到主要在通勤时学习"
+    }
+  ],
+  "open_questions": [
+    {
+      "id": "Q1",
+      "question": "发音评分服务的预算上限是多少？",
+      "blocks": ["US-002"],
+      "default_assumption": "A2",
+      "owner": "产品负责人"
+    }
+  ],
   "risks": [],
   "_meta": {
     "generator": "dsh-prd-generator",
-    "generator_version": "0.1.0",
+    "generator_version": "0.2.0",
     "generated_at": "2026-01-01T00:00:00.000Z",
     "template": "mobile-app",
-    "source_files": ["prd.md", "prd.json", "acceptance.md", "mindmap.mmd", "flowchart.mmd"]
+    "source_files": ["prd.md", "prd.json", "acceptance.md", "mindmap.mmd", "flowchart.mmd"],
+    "assumption_count": 1,
+    "open_question_count": 1
   }
 }
 ```
@@ -72,8 +93,10 @@
 | `non_functional.other` | 未归类的非功能需求 | 字符串数组 |
 | `success_metrics.business` | `metrics` 中非技术类 | 渲染为「名称：目标」 |
 | `success_metrics.technical` | `metrics` 中技术类（延迟/可用性/错误率等） | 渲染为「名称：目标」 |
+| `assumptions[]` | `assumptions` | 原样干净输出：`id/statement/source/impact/affects` 必有，`evidence` 非空才输出（无 undefined/null） |
+| `open_questions[]` | `open_questions` | 原样干净输出：`id/question/blocks` 必有，`default_assumption`/`owner` 非空才输出 |
 | `risks` | — | 目前固定空数组；风险写进 `insights` 第 9 章 |
-| `_meta` | — | 生成器版本、生成时间、模板、本次生成的文件列表 |
+| `_meta` | — | 生成器版本、生成时间、模板、本次生成的文件列表、`assumption_count`、`open_question_count` |
 
 ## 优先级定义
 
@@ -102,7 +125,32 @@ prd.json（结构化格式）
 1. `user_stories[].tasks`：开发任务拆得够具体，agent 才知道先做什么；
 2. `user_stories[].acceptance_criteria`：写成可判定的 Given-When-Then，等价于测试用例；
 3. `scope.in_scope`：定义「做完」的边界，防止 agent 无限扩张；
-4. `complexity`：low / medium / high，用于排期和拆分。
+4. `complexity`：low / medium / high，用于排期和拆分；
+5. `assumptions[]` / `open_questions[]`（0.2.0）：执行前**先读**——`open_questions` 里没答案的默认方案就是 `default_assumption`；`impact=blocks-p0` 的假设意味着这个 P0 方案的可行性建立在该假设上，评审/执行时不能当它不存在。
+
+## 假设与待确认（0.2.0 新增顶层字段）
+
+```jsonc
+"assumptions": [{
+  "id": "A1", "statement": "假设首版仅支持 iOS",
+  "source": "inference",           // user | inference | industry
+  "impact": "blocks-p0",           // blocks-p0 | changes-scope | minor
+  "affects": ["US-001"],           // 可选：受影响的用户故事 id
+  "evidence": "团队只有 iOS 开发者"  // 可选：blocks-p0 时强烈建议
+}],
+"open_questions": [{
+  "id": "Q1", "question": "首版是否需要 Android？",
+  "blocks": ["US-001"],            // 可选：被阻塞的用户故事 id
+  "default_assumption": "A1",      // 可选：P0 被阻塞时必须有
+  "owner": "用户"                   // 可选
+}]
+```
+
+下游（Ralph / 其他 agent）用法建议：
+
+1. 取 `user_stories[]` 之前先看 `open_questions`：有阻塞当前故事且无 `default_assumption` 的，先停下来问用户，不要猜；
+2. 有 `default_assumption` 的，按默认假设推进，但在完成报告里注明「基于假设 A2」；
+3. 有 `impact=blocks-p0` 的假设时，把它的 `statement` 写进开发任务的验收说明，避免实现与假设不一致。
 
 ## prd_check 会检查/提示什么
 
@@ -121,6 +169,10 @@ prd.json（结构化格式）
 | AC 不是 Given-When-Then 格式 | warning | 按模板改写 |
 | `scope.out_of_scope` 为空 | warning | 明确不做什么 |
 | 缺 `non_functional` / `success_metrics` | warning | 补充 |
+| P0 故事被 `open_questions[].blocks` 阻塞，且无 `default_assumption`、也无 `affects` 覆盖它的假设 | error | 给默认假设，或把故事降级 P1/P2 |
+| `assumptions` 为空（含旧版 prd.json 无该字段） | warning | 至少补 1 条；全部来自用户原话就写 `source: "user"` |
+| `impact=blocks-p0` 的假设缺 `evidence` | warning | 补依据（用户原话 / 搜索结果 / 行业惯例） |
+| assumptions/open_questions 字段类型不对（旧文件/手改） | warning | 改成数组；prd_check 不 crash，但为无效数据 |
 
 ## 手工修改注意
 

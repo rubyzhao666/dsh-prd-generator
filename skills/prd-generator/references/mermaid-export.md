@@ -77,6 +77,8 @@ flowchart TD
 
 说明：
 
+- 0.2.0 的「假设与待确认」账本不进入两张图（避免图噪音）；需要看假设请读 `prd.md` 第 10 章 / `prd.json` 的 `assumptions`、`open_questions`。
+
 - 节点文本会去掉 Mermaid 语法字符（`()`、`[]`、引号等），因此**故事短句更利于阅读**——写 `story` 时不必为了图而刻意缩短，图会自动截断；
 - 没有 P0 故事时不会出现验收 Gate（正常 PRD 不应出现这种情况，`prd_check` 会报错）；
 - `out_of_scope` 最多画 5 个节点，多的折叠为「等 N 项（见 prd.md 第 7 章）」。
@@ -87,7 +89,7 @@ flowchart TD
 
 | 文件 | 说明 |
 | --- | --- |
-| `prd.md` | 完整 PRD（Markdown，9 章） |
+| `prd.md` | 完整 PRD（Markdown，10 章） |
 | `prd.json` | 结构化 JSON（Ralph 兼容） |
 | `acceptance.md` | P0/P1/P2 验收勾选清单 |
 | `mindmap.mmd` | Mermaid 思维导图 |

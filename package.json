@@ -1,6 +1,6 @@
 {
   "name": "dsh-prd-generator",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Requirement clarification -> PRD -> prd.json (snarktank/ralph compatible) -> acceptance checklist, with a bundled prd-generator skill.",
   "type": "module",
   "main": "lib/index.js",
@@ -32,12 +32,19 @@
   "author": "rubyzhao666",
   "license": "MIT",
   "homepage": "https://github.com/rubyzhao666/dsh-prd-generator",
-  "repository": { "type": "git", "url": "git+https://github.com/rubyzhao666/dsh-prd-generator.git" },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/rubyzhao666/dsh-prd-generator.git"
+  },
   "engines": {
     "node": "^22.19.0 || >=24.0.0",
     "dsh": ">=0.2.1-rc.2 <0.3.0"
   },
-  "dsh": { "bundle": { "patch": "./cordis.patch.yml" } },
+  "dsh": {
+    "bundle": {
+      "patch": "./cordis.patch.yml"
+    }
+  },
   "scripts": {
     "test": "node --test test/*.test.mjs",
     "smoke": "node scripts/smoke.mjs"

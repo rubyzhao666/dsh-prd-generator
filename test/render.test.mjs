@@ -82,6 +82,8 @@ test('computeStats 统计故事 / AC / 优先级 / 范围', () => {
     features: 2,
     inScope: 2,
     outOfScope: 2,
+    assumptions: 0,
+    openQuestions: 0,
   })
 })
 
