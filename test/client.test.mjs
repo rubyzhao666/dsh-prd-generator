@@ -1,4 +1,4 @@
-// 0.4.0 浏览器半边（lib/client.js）静态 + 加载器沙盒测试：左侧栏「PRD 项目」入口。
+// 0.4.0 浏览器半边（lib/client.js）静态 + 加载器沙盒测试：左侧栏「PRD Creator」入口。
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import { execFileSync } from 'node:child_process'
@@ -51,7 +51,7 @@ test('ModuleLoader 契约：id / isPlugin / inject / apply', () => {
   assert.equal(typeof module.apply, 'function')
 })
 
-test('侧栏注册：sidebar.panellist id=prd-generator order=9 label=PRD 项目 + 内联图标', () => {
+test('侧栏注册：sidebar.panellist id=prd-generator order=9 label=PRD Creator + 内联图标', () => {
   const module = loadClientModule().factory(() => reactStub())
   const injects = []
   const registrations = []
@@ -73,7 +73,7 @@ test('侧栏注册：sidebar.panellist id=prd-generator order=9 label=PRD 项目
   assert.ok(sidebar, '缺少 sidebar.panellist 注册')
   assert.equal(sidebar.def.id, 'prd-generator')
   assert.equal(sidebar.def.order, 9)
-  assert.equal(sidebar.def.label(), 'PRD 项目')
+  assert.equal(sidebar.def.label(), 'PRD Creator')
 
   const icon = sidebar.component({ size: 20 })
   assert.equal(icon.type, 'svg')
@@ -88,7 +88,7 @@ test('侧栏注册：sidebar.panellist id=prd-generator order=9 label=PRD 项目
   const panel = main.component()
   assert.equal(panel.type, 'iframe')
   assert.equal(panel.props.src, '/prd-generator/')
-  assert.equal(panel.props.title, 'PRD 项目')
+  assert.equal(panel.props.title, 'PRD Creator')
 })
 
 test('client.js 无外部资源（无 http(s) 外链 / 无 script src）', () => {
