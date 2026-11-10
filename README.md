@@ -210,6 +210,7 @@ node scripts/smoke.mjs /tmp/prd-demo   # 写到指定目录
 - **只读页面 / API**：`/prd-generator/` 的 SPA 通过 `/prd-generator/api/prds*` 读 registry 与磁盘 `prd.json`（+ 同目录 `handoff.md` 是否存在）；页面与 API 不写盘、不联网、无外部资源。
 - **零运行时依赖、纯 ESM**：只 import Node 内置模块，没有 `dependencies`。
 - **不需要任何 API key、不写死密钥**：`prd_write` / `prd_check` / `prd_handoff` 纯本地；可选的竞品搜索由会话模型调用 DSH 的 `web_search` 完成。
+- **不消耗作者的 key**：插件包不含任何 key、不连作者服务器；聊天里的洞察/澄清消耗的是你自己 DSH 配置的模型额度。
 - 配置文件：无。
 
 ## 开发与测试

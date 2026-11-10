@@ -190,6 +190,7 @@ Priorities: **P0 = must ship for MVP; P1 = first iteration after MVP; P2 = long 
 - **Generation records**: `$DSH_HOME/prd-generator/registry.json` (default `~/.dsh/prd-generator/registry.json`). `prd_write` upserts one summary entry (id = first 12 hex of sha1(dir), name/summary/stats/handoff status); `prd_handoff` updates the handoff status. Max **200 entries**, atomic temp-file + rename writes, tolerant of corrupted JSON (treated as empty). It is the only data source for the sidebar list; **deleting it clears the list but leaves generated PRDs untouched**.
 - **Read-only pages / API**: the `/prd-generator/` SPA reads the registry and on-disk `prd.json` via `/prd-generator/api/prds*` (and checks for a sibling `handoff.md`). Pages and API write nothing and load no external resources.
 - **Zero runtime dependencies, pure ESM**: only Node built-ins, no `dependencies`.
+- **No author's key**: the package has no keys and no author server; chat analysis uses your own DSH model quota.
 - **No API keys, no secrets**: `prd_write` / `prd_check` / `prd_handoff` are fully local; optional competitor research uses DSH's `web_search` from the session model.
 - Configuration: none.
 
